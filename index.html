@@ -314,31 +314,34 @@ body::after {
 
 /* ---- transmission whispers ----------------------------------- */
 
-/* cryptic interference, rare — the menu you left on too long */
+/* cryptic interference — the menu you left on too long. Flickers in,
+   holds long enough to be read, then slowly melts into the red-black. */
 .whisper {
   position: absolute;
   z-index: 1;
-  font-size: 0.55rem;
+  font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(255,60,60,0.75);
-  text-shadow: 0 0 8px rgba(255,0,0,0.5);
+  color: rgba(255,60,60,0.8);
+  text-shadow: 0 0 10px rgba(255,0,0,0.55);
   filter: blur(0.7px);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
 }
-.whisper.show { animation: whisper 4.5s linear forwards; }
+.whisper.show { animation: whisper 9s linear forwards; }
 @keyframes whisper {
-  0%   { opacity: 0; }
-  4%   { opacity: 0.9; }
-  7%   { opacity: 0.1; }
-  11%  { opacity: 0.7; }
-  15%  { opacity: 0.25; }
-  19%  { opacity: 0.8; }
-  55%  { opacity: 0.5; }
-  100% { opacity: 0; }
+  0%   { opacity: 0;    filter: blur(1.6px); }
+  3%   { opacity: 0.95; filter: blur(0.6px); }
+  6%   { opacity: 0.15; filter: blur(0.9px); }
+  9%   { opacity: 0.85; filter: blur(0.6px); }
+  13%  { opacity: 0.3;  filter: blur(0.9px); }
+  17%  { opacity: 0.9;  filter: blur(0.6px); }
+  45%  { opacity: 0.75; filter: blur(0.7px); }
+  /* long decay: dim + defocus until it's just heat in the black */
+  75%  { opacity: 0.32; filter: blur(1.4px); }
+  100% { opacity: 0;    filter: blur(3.5px); }
 }
 
 /* ---- center message ----------------------------------------- */
@@ -661,29 +664,41 @@ body::after {
 })();
 
 /* ---- late-night broadcast anomalies ---------------------------
-   Rare, random, subtle: the orbit occasionally hops to the wrong
-   track, and cryptic transmissions surface in the dark. The kind
-   of thing a DVD menu does when nobody's been watching for a while. */
+   Random, subtle: the orbit occasionally hops to the wrong track,
+   and cryptic transmissions surface in the dark. The kind of thing
+   a DVD menu does when nobody's been watching for a while — and the
+   longer you leave it on, the weirder it gets: anomalies come more
+   often, and stranger messages unlock deeper into the session. */
 (function () {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   var anchor  = document.querySelector('.orbit-anchor');
   var whisper = document.getElementById('whisper');
 
+  /* ordered mild → weird; later lines only surface deeper into the session */
   var MSGS = [
-    'ARE YOU STILL THERE?',
     'HANDSHAKE INCOMPLETE // RETRYING',
     'SIGNAL BLEED DETECTED',
     'CARRIER LOST. CARRIER FOUND.',
-    '37.8044 N / 122.2712 W',
-    'THE NETWORK REMEMBERS YOU',
-    'ECHO OF NODE 000',
-    'DO NOT ADJUST YOUR TERMINAL',
     'UPLINK DREAMING',
-    'SOMEONE ELSE IS ON THIS FREQUENCY'
+    '37.8044 N / 122.2712 W',
+    'ARE YOU STILL THERE?',
+    'DO NOT ADJUST YOUR TERMINAL',
+    'ECHO OF NODE 000',
+    'THE NETWORK REMEMBERS YOU',
+    'SOMEONE ELSE IS ON THIS FREQUENCY',
+    'IT IS WARM INSIDE THE SIGNAL',
+    'WE NEVER STOPPED BROADCASTING',
+    'NODE 000 IS AWAKE',
+    'YOUR ORBIT IS DECAYING TOO'
   ];
 
+  var T0 = performance.now();
+  var lastMsg = -1;
+
   function rand(a, b) { return a + Math.random() * (b - a); }
+  /* weirdness: 0 at load → 1 after ~10 minutes on screen */
+  function weird() { return Math.min(1, (performance.now() - T0) / 600000); }
 
   /* orbit glitch: flicker between tracks, ride the wrong one, snap home */
   (function glitchLoop() {
@@ -699,7 +714,7 @@ body::after {
         }, rand(1400, 3200));
       })();
       glitchLoop();
-    }, rand(40000, 95000));
+    }, rand(40000, 95000) * (1 - 0.55 * weird()));
   })();
 
   /* whisper: one cryptic line, flickering in a quiet corner */
@@ -708,12 +723,17 @@ body::after {
   });
   (function whisperLoop() {
     setTimeout(function () {
-      whisper.textContent = MSGS[Math.floor(Math.random() * MSGS.length)];
+      /* the pool deepens with weirdness; never repeat the last line */
+      var unlocked = Math.max(6, Math.ceil(MSGS.length * (0.4 + 0.6 * weird())));
+      var i;
+      do { i = Math.floor(Math.random() * unlocked); } while (i === lastMsg);
+      lastMsg = i;
+      whisper.textContent = MSGS[i];
       whisper.style.left = (Math.random() < 0.5 ? rand(6, 24) : rand(58, 74)) + '%';
       whisper.style.top  = (Math.random() < 0.5 ? rand(12, 30) : rand(68, 84)) + '%';
       whisper.classList.add('show');
       whisperLoop();
-    }, rand(35000, 90000));
+    }, rand(22000, 60000) * (1 - 0.6 * weird()));
   })();
 })();
 </script>
