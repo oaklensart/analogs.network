@@ -450,13 +450,12 @@ body::after {
   <div class="hud hud-br">EST. 2026</div>
 
   <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
-          title="Ambient audio &mdash; &quot;Magic Bells Music Loop&quot; by orangefreesounds (freesound.org)">
+          title="Ambient audio">
     <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
     AUDIO <span class="r">//</span> <span id="audio-state">OFF</span>
   </button>
   <a class="hud hud-credit" id="audio-credit" hidden
-     href="https://freesound.org/s/242082/" rel="noopener" target="_blank">
-    &#9834; <span class="long">MAGIC BELLS &middot; </span>ORANGEFREESOUNDS &middot; CC BY 3.0
+     href="" rel="noopener" target="_blank">
   </a>
 
   <div class="globe-wrap" aria-hidden="true">
@@ -506,14 +505,13 @@ body::after {
 </main>
 
 <!--
-  Ambient audio: "Magic Bells Music Loop" by orangefreesounds
-  https://freesound.org/s/242082/ — License: Attribution 3.0
-  https://creativecommons.org/licenses/by/3.0/
-  Changes: transcoded to Ogg/Opus and AAC (.m4a) for web delivery.
+  Ambient audio: "Ominous and Deep Ambience" by Resaural
+  https://freesound.org/s/467026/ — License: Creative Commons 0 (No Attribution Required)
+  Changes: transcoded to Ogg/Opus and AAC (.m4a) for web delivery under 1MB.
 -->
 <audio id="bgm" loop preload="auto">
-  <source src="assets/audio/magic-bells.ogg" type="audio/ogg; codecs=opus">
-  <source src="assets/audio/magic-bells.m4a" type="audio/mp4">
+  <source src="assets/audio/ambient-loop.ogg" type="audio/ogg; codecs=opus">
+  <source src="assets/audio/ambient-loop.m4a" type="audio/mp4">
 </audio>
 
 <script>
@@ -524,6 +522,7 @@ body::after {
   var state  = document.getElementById('audio-state');
   var TARGET = 0.75;                 /* background thing — never full blast */
   var KEY    = 'analogs.audio';
+  var fade   = null;
 
   btn.hidden = credit.hidden = false;   /* controls only exist if JS runs */
 
@@ -536,12 +535,25 @@ body::after {
     btn.setAttribute('aria-pressed', mode === 'on' ? 'true' : 'false');
   }
 
+  function fadeTo(target, ms, then) {
+    if (fade) cancelAnimationFrame(fade);
+    var from = audio.volume, t0 = performance.now();
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / ms);
+      audio.volume = from + (target - from) * k;
+      if (k < 1) fade = requestAnimationFrame(step);
+      else if (then) then();
+    })(t0);
+  }
+
   function start() {
-    audio.volume = TARGET;
+    if (fade) cancelAnimationFrame(fade);
+    audio.volume = 0;
     var p = audio.play();
     if (p && p.then) p.then(function () {
       disarm();
       setUI('on');
+      fadeTo(TARGET, 3500);
     }).catch(function () {            /* autoplay blocked: first gesture starts it */
       setUI('standby');
       arm();
@@ -550,7 +562,7 @@ body::after {
 
   function stop() {
     setUI('off');
-    audio.pause();
+    fadeTo(0, 600, function () { audio.pause(); });
   }
 
   function kick(e) {
