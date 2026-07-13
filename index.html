@@ -19,7 +19,8 @@
 /* ============================================================
    ANALOGS.NETWORK — pre-init placeholder
    One page. No dependencies. No build step. Minimal inline JS
-   (ambient audio only — page degrades to fully static without it).
+   (ambient audio + rare orbit glitches / whispers — page degrades
+   to fully static without it).
    Palette (3): OLED black #000 · signal red #FF0000 · paper #E0E0E0
    ============================================================ */
 
@@ -264,8 +265,80 @@ body::after {
   75%  { opacity: 0.15; transform: scale(0.65); filter: none; }
   100% { opacity: 0.8; transform: scale(0.9); }
 }
+/* echo trail — afterimages of light chasing the callsign */
+.orbit-trail i {
+  position: absolute;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #ff2222;
+  box-shadow: 0 0 6px rgba(255,0,0,0.8);
+  offset-path: ellipse(68vmin 20vmin at 0 0);
+  offset-rotate: 0deg;
+  animation: orbit 36s linear infinite, trail-depth 36s linear infinite;
+}
+.orbit-trail i:nth-child(1) { --o: 0.60; animation-delay: -35.4s; }
+.orbit-trail i:nth-child(2) { --o: 0.44; animation-delay: -34.8s; }
+.orbit-trail i:nth-child(3) { --o: 0.31; animation-delay: -34.2s; width: 2.5px; height: 2.5px; }
+.orbit-trail i:nth-child(4) { --o: 0.20; animation-delay: -33.6s; width: 2.5px; height: 2.5px; }
+.orbit-trail i:nth-child(5) { --o: 0.12; animation-delay: -33s;   width: 2px; height: 2px; }
+.orbit-trail i:nth-child(6) { --o: 0.06; animation-delay: -32.4s; width: 2px; height: 2px; }
+/* same depth cycle as the label, scaled down to each echo's brightness */
+@keyframes trail-depth {
+  0%   { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
+  25%  { opacity: var(--o);              transform: scale(1.15); }
+  50%  { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
+  75%  { opacity: calc(var(--o) * 0.12); transform: scale(0.6); }
+  100% { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
+}
+@supports not (offset-path: ellipse(1px 1px at 0 0)) {
+  .orbit-trail { display: none; }
+}
+
+/* orbit glitch — the callsign hops onto the wrong track for a moment.
+   g1: a meridian-style vertical orbit. g2: a tilted inclination. */
+.orbit-anchor.g1 .orbit-label, .orbit-anchor.g1 .orbit-trail i { offset-path: ellipse(20vmin 60vmin at 0 0); }
+.orbit-anchor.g2 .orbit-label, .orbit-anchor.g2 .orbit-trail i { offset-path: ellipse(55vmin 38vmin at 0 0); }
+.orbit-anchor.g2 { transform: rotate(-28deg); }
+.orbit-anchor.glitching .orbit-label {
+  color: var(--white);
+  text-shadow: -1px 0 rgba(255,0,0,0.9), 1px 0 rgba(224,224,224,0.5), 0 0 8px rgba(255,0,0,0.8);
+  filter: blur(0.4px);
+}
+
 @media (max-width: 560px) {
   .orbit-label { font-size: 0.54rem; offset-path: ellipse(48vmin 12vmin at 0 0); }
+  .orbit-trail i { offset-path: ellipse(48vmin 12vmin at 0 0); }
+  .orbit-anchor.g1 .orbit-label, .orbit-anchor.g1 .orbit-trail i { offset-path: ellipse(12vmin 42vmin at 0 0); }
+  .orbit-anchor.g2 .orbit-label, .orbit-anchor.g2 .orbit-trail i { offset-path: ellipse(38vmin 26vmin at 0 0); }
+}
+
+/* ---- transmission whispers ----------------------------------- */
+
+/* cryptic interference, rare — the menu you left on too long */
+.whisper {
+  position: absolute;
+  z-index: 1;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,60,60,0.75);
+  text-shadow: 0 0 8px rgba(255,0,0,0.5);
+  filter: blur(0.7px);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+.whisper.show { animation: whisper 4.5s linear forwards; }
+@keyframes whisper {
+  0%   { opacity: 0; }
+  4%   { opacity: 0.9; }
+  7%   { opacity: 0.1; }
+  11%  { opacity: 0.7; }
+  15%  { opacity: 0.25; }
+  19%  { opacity: 0.8; }
+  55%  { opacity: 0.5; }
+  100% { opacity: 0; }
 }
 
 /* ---- center message ----------------------------------------- */
@@ -432,9 +505,11 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   .globe .mer, .globe .node-ring, .orbit-label,
   .msg h1 .dots::after, .msg h1 .cur, .photons ellipse,
-  body::after, .frame i, .audio-toggle.on .eq i { animation: none; }
+  body::after, .frame i, .audio-toggle.on .eq i,
+  .orbit-trail i, .whisper.show { animation: none; }
   .msg h1 .dots::after { width: auto; }
   .orbit-label { offset-distance: 12%; opacity: 0.9; }
+  .orbit-trail, .whisper { display: none; }
 }
 </style>
 </head>
@@ -492,8 +567,11 @@ body::after {
 
     <span class="orbit-anchor" aria-hidden="true">
       <span class="orbit-label">OAKLENS.ART</span>
+      <span class="orbit-trail"><i></i><i></i><i></i><i></i><i></i><i></i></span>
     </span>
   </div>
+
+  <div class="whisper" id="whisper" aria-hidden="true"></div>
 
   <div class="msg">
     <h1>AWAITING NODES<span class="dots"></span><span class="cur" aria-hidden="true"></span></h1>
@@ -580,6 +658,63 @@ body::after {
 
   if (pref() === 'off') setUI('off');   /* respect a visitor who turned it off */
   else start();
+})();
+
+/* ---- late-night broadcast anomalies ---------------------------
+   Rare, random, subtle: the orbit occasionally hops to the wrong
+   track, and cryptic transmissions surface in the dark. The kind
+   of thing a DVD menu does when nobody's been watching for a while. */
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var anchor  = document.querySelector('.orbit-anchor');
+  var whisper = document.getElementById('whisper');
+
+  var MSGS = [
+    'ARE YOU STILL THERE?',
+    'HANDSHAKE INCOMPLETE // RETRYING',
+    'SIGNAL BLEED DETECTED',
+    'CARRIER LOST. CARRIER FOUND.',
+    '37.8044 N / 122.2712 W',
+    'THE NETWORK REMEMBERS YOU',
+    'ECHO OF NODE 000',
+    'DO NOT ADJUST YOUR TERMINAL',
+    'UPLINK DREAMING',
+    'SOMEONE ELSE IS ON THIS FREQUENCY'
+  ];
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  /* orbit glitch: flicker between tracks, ride the wrong one, snap home */
+  (function glitchLoop() {
+    setTimeout(function () {
+      var track = Math.random() < 0.5 ? 'g1' : 'g2';
+      anchor.classList.add('glitching');
+      var flips = 0;
+      (function flip() {
+        anchor.classList.toggle(track);
+        if (++flips < 5) setTimeout(flip, rand(70, 180));
+        else setTimeout(function () {
+          anchor.classList.remove(track, 'glitching');
+        }, rand(1400, 3200));
+      })();
+      glitchLoop();
+    }, rand(40000, 95000));
+  })();
+
+  /* whisper: one cryptic line, flickering in a quiet corner */
+  whisper.addEventListener('animationend', function () {
+    whisper.classList.remove('show');
+  });
+  (function whisperLoop() {
+    setTimeout(function () {
+      whisper.textContent = MSGS[Math.floor(Math.random() * MSGS.length)];
+      whisper.style.left = (Math.random() < 0.5 ? rand(6, 24) : rand(58, 74)) + '%';
+      whisper.style.top  = (Math.random() < 0.5 ? rand(12, 30) : rand(68, 84)) + '%';
+      whisper.classList.add('show');
+      whisperLoop();
+    }, rand(35000, 90000));
+  })();
 })();
 </script>
 
