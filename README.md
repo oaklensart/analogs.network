@@ -8,8 +8,8 @@ This repository will serve as the open-source node registry and core infrastruct
 
 ## Audio Attribution
 
-The ambient background track uses "piano loop 0Y83" by **Setuniman** — <https://freesound.org/s/180249/>
-License: [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). 
+The ambient background track uses "Magic Bells Music Loop" by **orangefreesounds** — <https://freesound.org/s/242082/>
+License: [Attribution 3.0](https://creativecommons.org/licenses/by/3.0/). 
 Changes: transcoded to Ogg/Opus and AAC for web delivery. Attribution is also shown on-page.
 
 ## Live Status
