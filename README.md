@@ -12,9 +12,18 @@ and terminal map UI are built.
 
 | File | Purpose |
 |------|---------|
-| `index.html` | The whole site: one page, zero JS, zero dependencies, no build step. OLED black / signal red / paper white. CSS-only rotating wireframe globe, orbiting OAKLENS.ART callsign, `AWAITING NODES` message linking to os.oaklens.art. Mobile-safe (safe-area insets, `prefers-reduced-motion` honored). |
+| `index.html` | The whole site: one page, zero dependencies, no build step. OLED black / signal red / paper white. CSS-only rotating wireframe globe, orbiting OAKLENS.ART callsign, `AWAITING NODES` message linking to os.oaklens.art. Film grain, vignette, and specular glass details. One small inline script drives the ambient piano loop (auto-play at 75 % volume with a slow fade-in, HUD toggle, choice remembered in `localStorage`); the page degrades to fully static without JS. Mobile-safe (safe-area insets, `prefers-reduced-motion` honored). |
 | `favicon.svg` | Node motif — red beacon in a wire ring on black. |
-| `_headers` | Cloudflare Pages security headers. CSP locks everything except inline styles and self-served images — there is no script surface at all. |
+| `_headers` | Cloudflare Pages security headers. CSP allows only inline styles/script, self-served media, and self/data images — no external surface. |
+| `assets/audio/` | Ambient loop, two encodes of the same source: `piano-loop.ogg` (Opus, Chrome/Firefox) and `piano-loop.m4a` (AAC, Safari/iOS). |
+
+## Audio attribution
+
+"piano loop 0Y83" by **Setuniman** — <https://freesound.org/s/180249/> —
+License: [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+Changes: transcoded to Ogg/Opus and AAC for web delivery. Attribution is also
+shown on-page (bottom-center credit link) and in an HTML comment beside the
+`<audio>` element.
 
 ## Day-one deploy (once the domain is registered)
 
