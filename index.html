@@ -524,7 +524,6 @@ body::after {
   var state  = document.getElementById('audio-state');
   var TARGET = 0.75;                 /* background thing — never full blast */
   var KEY    = 'analogs.audio';
-  var fade   = null;
 
   btn.hidden = credit.hidden = false;   /* controls only exist if JS runs */
 
@@ -537,25 +536,12 @@ body::after {
     btn.setAttribute('aria-pressed', mode === 'on' ? 'true' : 'false');
   }
 
-  function fadeTo(target, ms, then) {
-    if (fade) cancelAnimationFrame(fade);
-    var from = audio.volume, t0 = performance.now();
-    (function step(t) {
-      var k = Math.min(1, (t - t0) / ms);
-      audio.volume = from + (target - from) * k;
-      if (k < 1) fade = requestAnimationFrame(step);
-      else if (then) then();
-    })(t0);
-  }
-
   function start() {
-    if (fade) cancelAnimationFrame(fade);
-    audio.volume = 0;
+    audio.volume = TARGET;
     var p = audio.play();
     if (p && p.then) p.then(function () {
       disarm();
       setUI('on');
-      fadeTo(TARGET, 3500);
     }).catch(function () {            /* autoplay blocked: first gesture starts it */
       setUI('standby');
       arm();
@@ -564,7 +550,7 @@ body::after {
 
   function stop() {
     setUI('off');
-    fadeTo(0, 600, function () { audio.pause(); });
+    audio.pause();
   }
 
   function kick(e) {
