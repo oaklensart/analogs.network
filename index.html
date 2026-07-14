@@ -640,26 +640,64 @@ body::after {
   }
 
   var em = document.createElement('canvas'), ectx = em.getContext('2d');
-  var mipA = document.createElement('canvas'), aCtx = mipA.getContext('2d');
-  var blurA = document.createElement('canvas'), baCtx = blurA.getContext('2d');
-  var mipB = document.createElement('canvas'), bCtx = mipB.getContext('2d');
-  var blurB = document.createElement('canvas'), bbCtx = blurB.getContext('2d');
+
+  /* bloom mip chain: bilinear downscales so hardware filtering does ALL
+     the blurring — no ctx.filter (unsupported or slow outside Chromium;
+     its silent no-op was the Safari banding). One step to 1/4, then
+     half-steps 1/8 → 1/16 → 1/32 (half-steps below 1/4 keep the wide
+     halos from undersampling/shimmering). */
+  var mips = [];
+  for (var mi = 0; mi < 4; mi++) {
+    var mc = document.createElement('canvas');
+    mips.push({ c: mc, x: mc.getContext('2d') });
+  }
+
+  /* quality tiers — the governor sheds these in order if frames run long */
+  var Q = { wideBloom: true, moteStride: 1 };
+  var DPRCAP = 1.5;
 
   var W, H, DPR, RMAJ, CX, CY;
   function resize() {
     W = innerWidth; H = innerHeight;
-    DPR = Math.min(devicePixelRatio || 1, 1.5);
+    DPR = Math.min(devicePixelRatio || 1, DPRCAP);
     canvas.width = em.width = W * DPR;
     canvas.height = em.height = H * DPR;
-    mipA.width = blurA.width = Math.max(2, (W * DPR / 4) | 0);
-    mipA.height = blurA.height = Math.max(2, (H * DPR / 4) | 0);
-    mipB.width = blurB.width = Math.max(2, (W * DPR / 16) | 0);
-    mipB.height = blurB.height = Math.max(2, (H * DPR / 16) | 0);
+    for (var i = 0; i < mips.length; i++) {
+      var s = Math.pow(2, i + 2);           /* 4, 8, 16, 32 */
+      mips[i].c.width  = Math.max(2, (W * DPR / s) | 0);
+      mips[i].c.height = Math.max(2, (H * DPR / s) | 0);
+    }
     RMAJ = Math.min(W, H) * 0.34;
     CX = W / 2; CY = H * 0.5;
   }
   resize();
   addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
+
+  /* dither sheet — gray-centered noise, pre-rendered ONCE at 1024².
+     Per frame a randomly-offset crop is blitted over the 1/4 bloom mip
+     with 'overlay' (neutral on black; breaks 8-bit banding in the glows
+     by optical mixing). Must be a drawImage blit: a CanvasPattern fill
+     with a jittered transform re-rasterizes the pattern every frame and
+     costs ~20ms/frame in software paths (measured). */
+  var NOISE_S = 1024;
+  var noise = document.createElement('canvas');
+  noise.width = noise.height = NOISE_S;
+  (function () {
+    var nx = noise.getContext('2d');
+    var id = nx.createImageData(NOISE_S, NOISE_S);
+    for (var i = 0; i < id.data.length; i += 4) {
+      var v = 128 + (((Math.random() + Math.random() - 1) * 30) | 0);
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+      id.data[i + 3] = 255;
+    }
+    nx.putImageData(id, 0, 0);
+  })();
+  /* bake through a clean copy: a putImageData'd canvas can be a slow
+     drawImage source (raw-pixel state) */
+  var noiseBaked = document.createElement('canvas');
+  noiseBaked.width = noiseBaked.height = NOISE_S;
+  noiseBaked.getContext('2d').drawImage(noise, 0, 0);
+  noise = noiseBaked;
 
   /* sockets: dark seats on the coil; index 0 is node 000, lit */
   var sockets = [];
@@ -721,10 +759,29 @@ body::after {
 
   var lastT = performance.now(), running = true;
   var flickerAt = lastT + 3000;
+  var headX = -9999, headY = -9999, orgX = -9999, orgY = -9999;
+  var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
+  var DUST = { r: 255, g: 200, b: 190 };
+  var gov = { warm: 0, acc: 0, n: 0, tier: 0 };
 
   function frame(now) {
     var dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
+
+    /* frame-time governor: after warmup, shed quality in tiers instead
+       of chugging — wide bloom mip, then half the motes, then DPR 1 */
+    if (!REDUCED && ++gov.warm > 120) {
+      gov.acc += dt; gov.n++;
+      if (gov.n >= 90) {
+        if (gov.acc / gov.n > 0.026 && gov.tier < 3) {
+          gov.tier++;
+          if (gov.tier === 1) Q.wideBloom = false;
+          else if (gov.tier === 2) Q.moteStride = 2;
+          else { DPRCAP = 1; resize(); }
+        }
+        gov.acc = 0; gov.n = 0;
+      }
+    }
 
     if (!REDUCED) {
       spin += 0.00085 * dt * 60;
@@ -765,7 +822,7 @@ body::after {
         zsum += out.z;
       }
       depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
-      ectx.strokeStyle = col(RED, 0.08 + 0.18 * Math.pow(depth, 1.8));
+      ectx.strokeStyle = col(mix(FARRED, RED, depth), 0.08 + 0.18 * Math.pow(depth, 1.8));
       ectx.stroke();
     }
 
@@ -787,7 +844,10 @@ body::after {
       }
       depth = Math.max(0, (ZM - zs / (RUN + 1)) / (2 * ZM));
       var da = 0.14 + 0.86 * Math.pow(depth, 1.6);
-      var cc = heat > 0.01 ? mix(RED, cycleCur, heat) : RED;
+      /* far side sinks toward deep desaturated red — atmosphere, not
+         just fade (the fiber-optic white→warm falloff, reversed) */
+      var emberC = mix(FARRED, RED, Math.min(1, depth * 1.35));
+      var cc = heat > 0.01 ? mix(emberC, cycleCur, heat) : emberC;
       var a1 = da * (0.17 + heat * 0.5);
       var a2 = da * (0.46 + heat * 0.6);
       ectx.strokeStyle = col(cc, a1);
@@ -821,6 +881,7 @@ body::after {
       ectx.beginPath();
       ectx.arc(out.sx, out.sy, 1.8 * out.scale, 0, TAU);
       ectx.fill();
+      headX = out.sx; headY = out.sy;      /* light source for the dust */
     }
 
     /* sockets: dark seats, the odd hopeful flicker, origin alight */
@@ -841,6 +902,7 @@ body::after {
         ectx.beginPath();
         ectx.arc(out.sx, out.sy, 1.7 * out.scale, 0, TAU);
         ectx.fill();
+        orgX = out.sx; orgY = out.sy;      /* second light source */
       } else {
         var fa = (0.15 + 0.07 * Math.sin(now * 0.0012 + so.tw) + so.flash * 0.85) * depth;
         if (fa > 0.02) {
@@ -852,26 +914,57 @@ body::after {
       }
     }
 
-    /* dust */
-    for (k = 0; k < motes.length; k++) {
+    /* dust — reacts to the two live light sources (packet head + origin):
+       squared-distance falloff, no sqrt. Lit motes flare, scale, and
+       tint toward the light; dim motes batch into three Path2D alpha
+       buckets so the whole field costs a handful of fill calls. */
+    var buckets = [null, null, null];
+    var BUCKET_A = [0.022, 0.045, 0.075];
+    var pr2 = (RMAJ * 0.32) * (RMAJ * 0.32);
+    var or2 = pr2 * 0.35;
+    for (k = 0; k < motes.length; k += Q.moteStride) {
       var mo = motes[k];
       if (!REDUCED) { mo.theta += 0.00005; mo.tw += mo.tws * dt; }
       var r3 = 1 + TUBE * Math.cos(mo.phi);
       project(r3 * Math.cos(mo.theta) + mo.ox, r3 * Math.sin(mo.theta) + mo.oy,
               TUBE * Math.sin(mo.phi) + mo.oz, cosS, sinS, cosT, sinT);
       depth = Math.max(0, (ZM - out.z) / (2 * ZM));
-      var ma = (0.03 + 0.05 * (0.5 + 0.5 * Math.sin(mo.tw))) * depth;
-      if (ma < 0.012) continue;
-      ectx.fillStyle = col({ r: 255, g: 200, b: 190 }, ma);
-      ectx.beginPath();
-      ectx.arc(out.sx, out.sy, 0.8 * out.scale, 0, TAU);
-      ectx.fill();
+      var tw2 = 0.5 + 0.5 * Math.sin(mo.tw);
+      var ma = (0.03 + 0.05 * tw2) * depth;
+      var boost = 0;
+      if (!REDUCED) {
+        var dx = out.sx - headX, dy = out.sy - headY;
+        boost = 0.6 / (1 + (dx * dx + dy * dy) / pr2);
+        dx = out.sx - orgX; dy = out.sy - orgY;
+        boost += 0.35 / (1 + (dx * dx + dy * dy) / or2);
+      }
+      if (boost > 0.04) {
+        ma += boost * (0.5 + 0.5 * tw2);
+        ectx.fillStyle = col(mix(DUST, cycleCur, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
+        ectx.beginPath();
+        ectx.arc(out.sx, out.sy, (0.8 + boost * 1.8) * out.scale, 0, TAU);
+        ectx.fill();
+      } else if (ma >= 0.012) {
+        var bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
+        if (!buckets[bi]) buckets[bi] = new Path2D();
+        var mr = 0.8 * out.scale;
+        buckets[bi].moveTo(out.sx + mr, out.sy);
+        buckets[bi].arc(out.sx, out.sy, mr, 0, TAU);
+      }
+    }
+    for (k = 0; k < 3; k++) {
+      if (buckets[k]) {
+        ectx.fillStyle = col(DUST, BUCKET_A[k]);
+        ectx.fill(buckets[k]);
+      }
     }
     ectx.globalCompositeOperation = 'source-over';
 
     /* composite: floor catch + emissive + bloom */
     mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    mctx.clearRect(0, 0, W, H);
+    mctx.fillStyle = '#000';                 /* opaque black: 'overlay'
+                                                dither stays neutral here */
+    mctx.fillRect(0, 0, W, H);
     var fg = mctx.createRadialGradient(CX, H * 1.18, 0, CX, H * 1.18, H * 0.8);
     fg.addColorStop(0, col(floorCur, 0.13));
     fg.addColorStop(0.5, col(floorCur, 0.03));
@@ -883,23 +976,42 @@ body::after {
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     mctx.drawImage(em, 0, 0);
 
-    aCtx.clearRect(0, 0, mipA.width, mipA.height);
-    aCtx.drawImage(em, 0, 0, mipA.width, mipA.height);
-    baCtx.clearRect(0, 0, blurA.width, blurA.height);
-    baCtx.filter = 'blur(2px)';
-    baCtx.drawImage(mipA, 0, 0);
-    baCtx.filter = 'none';
-    mctx.globalAlpha = 0.6;
-    mctx.drawImage(blurA, 0, 0, canvas.width, canvas.height);
+    /* ping-pong bloom: successive half-step downscales; hardware
+       bilinear filtering IS the blur (each halving is a proper 2×2
+       box average — never skip levels or it undersamples and
+       shimmers). No ctx.filter anywhere: identical output on
+       Chromium, WebKit, and Gecko. */
+    var src = em;
+    var levels = Q.wideBloom ? mips.length : mips.length - 1;
+    for (k = 0; k < levels; k++) {
+      mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
+      mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
+      src = mips[k].c;
+    }
 
-    bCtx.clearRect(0, 0, mipB.width, mipB.height);
-    bCtx.drawImage(blurA, 0, 0, mipB.width, mipB.height);
-    bbCtx.clearRect(0, 0, blurB.width, blurB.height);
-    bbCtx.filter = 'blur(2.5px)';
-    bbCtx.drawImage(mipB, 0, 0);
-    bbCtx.filter = 'none';
-    mctx.globalAlpha = 0.8;
-    mctx.drawImage(blurB, 0, 0, canvas.width, canvas.height);
+    /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
+       full-res pass): the bloom halos are where 8-bit banding lives,
+       'overlay' gray noise is neutral on black, and the bilinear
+       upscale melts the jitter into film-grain-scale texture. */
+    var dx1 = mips[0].x;
+    var mw = mips[0].c.width, mh = mips[0].c.height;
+    var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
+    dx1.globalCompositeOperation = 'overlay';
+    dx1.globalAlpha = 0.14;
+    dx1.drawImage(noise,
+      (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
+      sw, sh, 0, 0, mw, mh);
+    dx1.globalAlpha = 1;
+    dx1.globalCompositeOperation = 'source-over';
+
+    mctx.globalAlpha = 0.5;
+    mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
+    mctx.globalAlpha = 0.62;
+    mctx.drawImage(mips[2].c, 0, 0, canvas.width, canvas.height);   /* 1/16 — soft scatter */
+    if (Q.wideBloom) {
+      mctx.globalAlpha = 0.5;
+      mctx.drawImage(mips[3].c, 0, 0, canvas.width, canvas.height); /* 1/32 — room glow */
+    }
 
     mctx.globalAlpha = 1;
     mctx.globalCompositeOperation = 'source-over';
