@@ -761,7 +761,20 @@ body {
   var DUST = { r: 255, g: 200, b: 190 };
   var gov = { warm: 0, acc: 0, n: 0, tier: 0 };
 
+  /* error containment: an engine exception degrades to the static CSS
+     fallback ring — never a black void (degrade-quietly discipline) */
   function frame(now) {
+    try { draw(now); }
+    catch (e) {
+      running = false;
+      canvas.hidden = true;
+      document.body.classList.add('no-canvas');
+      return;
+    }
+    if (!REDUCED && running) requestAnimationFrame(frame);
+  }
+
+  function draw(now) {
     var dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
@@ -1026,8 +1039,6 @@ body {
 
     mctx.globalAlpha = 1;
     mctx.globalCompositeOperation = 'source-over';
-
-    if (!REDUCED && running) requestAnimationFrame(frame);
   }
 
   document.addEventListener('visibilitychange', function () {

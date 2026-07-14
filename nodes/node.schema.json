@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://analogs.network/nodes/node.schema.json",
+  "title": "ANALOGS.NETWORK node manifest",
+  "description": "One creative's seat on the ring. Fields are core LONG-TERM metadata — chosen to still make sense in ten years. Node numbers are permanent: assigned at merge, never reused; a node that goes offline becomes status 'dark' (a tombstone that keeps its number), it is never deleted.",
+  "type": "object",
+  "required": ["node", "slug", "name", "url", "disciplines", "est", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "node": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Permanent ring position, assigned at merge (join order IS ring order). Never reused."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 40,
+      "description": "Stable lowercase identifier. Matches the filename: nodes/{NNN}-{slug}.json"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "Display name, as it should read on the ring."
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https://",
+      "description": "The node's own corner of the web. HTTPS only."
+    },
+    "disciplines": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["Photography", "Digital Art", "Writing", "Code", "Music", "Design", "Architecture"]
+      },
+      "description": "Primary discipline first — it sets the node's light color on the ring."
+    },
+    "est": {
+      "type": "string",
+      "pattern": "^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+      "description": "YYYY-MM-DD the node joined the ring (day precision: the card's DAY n badge and the FIRST LIGHT afterglow both derive from it; display renders YYYY.MM)."
+    },
+    "status": {
+      "enum": ["online", "dark"],
+      "description": "'dark' is a tombstone: the socket goes inert but keeps its number. Set by maintainers, not by PR authors."
+    },
+    "founding": {
+      "type": "boolean",
+      "description": "First cohort. White-hot core on the ring. Set by maintainers."
+    },
+    "button": {
+      "type": "string",
+      "pattern": "^https://",
+      "description": "Optional 88x31 button (the old web's handshake) other nodes may display."
+    },
+    "feed": {
+      "type": "string",
+      "pattern": "^https://",
+      "description": "Optional RSS/Atom feed — reserved for a future 'fresh signal' indicator."
+    }
+  }
+}

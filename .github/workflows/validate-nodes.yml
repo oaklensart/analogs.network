@@ -1,0 +1,22 @@
+name: VALIDATE // NODES
+
+on:
+  pull_request:
+    paths:
+      - 'nodes/**'
+      - 'scripts/validate-nodes.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'nodes/**'
+      - 'scripts/validate-nodes.mjs'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-nodes.mjs
