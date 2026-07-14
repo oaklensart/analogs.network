@@ -304,11 +304,25 @@ body {
 }
 .msg .sub .r { color: rgba(255,0,0,0.9); }
 
+.msg .sub-addr {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(0.5rem, 2vw, 0.62rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(224,224,224,0.35);
+  transition: color 0.25s ease;
+}
+.msg:hover .sub-addr, .msg:focus-visible .sub-addr {
+  color: rgba(224,224,224,0.6);
+}
+
 /* phone: tighten tracking + padding so the nowrap headline always fits */
 @media (max-width: 560px) {
   .msg { padding: 15px 16px 17px; max-width: calc(100vw - 36px); }
   .msg h1 { font-size: clamp(0.78rem, 3.7vw, 1.2rem); letter-spacing: 0.2em; margin-right: -0.2em; }
   .msg .sub { letter-spacing: 0.18em; }
+  .msg .sub-addr { letter-spacing: 0.16em; margin-top: 8px; }
 }
 
 /* ---- ambient audio HUD --------------------------------------- */
@@ -418,14 +432,31 @@ body {
 
   <div class="whisper" id="whisper" aria-hidden="true"></div>
 
-  <a class="msg" href="mailto:themonitor@analogs.network?subject=add%20me&body=my%20site%3A%20"
-     aria-label="Add your site as a founding node. Send add me and your URL to themonitor at analogs.network.">
+  <a class="msg" id="msg-link"
+     aria-label="Become a founding node. Send add me and your URL to themonitor at analogs.network.">
     <h1>AWAITING NODES<span class="dots"></span><span class="cur" aria-hidden="true"></span></h1>
     <span class="sub">
+      BECOME A FOUNDING NODE <span class="r">///</span>
+    </span>
+    <span class="sub-addr">
       SEND "ADD ME" + YOUR URL<br>
-      THEMONITOR@ANALOGS.NETWORK <span class="r">///</span>
+      <span id="tm-addr">THEMONITOR</span>
     </span>
   </a>
+  <script>
+  /* assemble the address at runtime — Cloudflare's email obfuscation
+     scans the HTML source for mailto: and @-addresses and replaces them
+     with an encoded blob that requires their decoder script. Building
+     the address in JS keeps it out of the source entirely. */
+  (function () {
+    var u = 'themonitor', d = 'analogs.network';
+    var a = u + '@' + d;
+    var el = document.getElementById('msg-link');
+    var sp = document.getElementById('tm-addr');
+    if (el) el.href = 'mail' + 'to:' + a + '?subject=add%20me&body=my%20site%3A%20';
+    if (sp) sp.textContent = (u + '@' + d).toUpperCase();
+  })();
+  </script>
 
 </main>
 
