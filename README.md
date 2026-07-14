@@ -8,7 +8,7 @@ This repository will serve as the open-source node registry and core infrastruct
 
 ## Audio Attribution
 
-*(None)*
+Ambient loop: ["Ominous and Deep Ambience"](https://freesound.org/s/467026/) by Resaural — Creative Commons 0 (no attribution required; credited anyway). Transcoded to Ogg/Opus and AAC for web delivery.
 
 ## Live Status
 
@@ -18,7 +18,7 @@ The domain is active at [analogs.network](https://analogs.network/) with a stati
 
 - **Node Manifests**: Open PRs for creatives to register their nodes (`nodes/*.json`).
 - **Validation CI**: Automated JSON-schema validation for node intake.
-- **Terminal Map**: A full UI for navigating the network with discipline filters and regional mapping.
+- **The Ring**: the live network interface — discipline filters, search, and drift.
 - **Accessible Intake**: GitHub issue forms to automate node PRs for non-developers.
 
 ## Join the Network
