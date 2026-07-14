@@ -81,9 +81,11 @@ body {
 [hidden] { display: none !important; }
 
 /* ---- ground: pure OLED black ---------------------------------
-   No vignette, no grain, no floor wash (owner call, 2026-07-14):
-   the ring and its light speak for themselves against absolute
-   black. Anti-banding lives inside the engine (mip-res dither). */
+   No vignette, no grain (owner call, 2026-07-14): the ring and its
+   light speak for themselves against absolute black. The floor is
+   back (2026-07-14b) but as EMITTED LIGHT, not a wash — the engine
+   paints it into the 1/4 bloom mip, so unlit ground stays #000 and
+   the dither pass keeps the gradient band-free. */
 
 /* ---- stage ------------------------------------------------ */
 
@@ -374,6 +376,28 @@ body {
   .hud-credit .long { display: none; }
 }
 
+/* ---- node 000 badge — the 88x31 handshake --------------------
+   The old web's calling card. oaklens.art is node 000; its button
+   sits above the EST line like a signature on the terminal. */
+
+.badge88 {
+  position: absolute;
+  bottom: calc(44px + env(safe-area-inset-bottom));
+  right: calc(30px + env(safe-area-inset-right));
+  z-index: 3;
+  display: block;
+  width: 88px;
+  height: 31px;
+  opacity: 0.78;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+.badge88:hover, .badge88:focus-visible {
+  opacity: 1;
+  filter: drop-shadow(0 0 9px rgba(255,0,0,0.5));
+  outline: none;
+}
+.badge88 img { display: block; width: 88px; height: 31px; }
+
 /* ---- motion off ---------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -395,6 +419,12 @@ body {
   <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
   <div class="hud hud-bl">NODES <span class="r">//</span> 001</div>
   <div class="hud hud-br">EST. 2026</div>
+
+  <a class="badge88" href="https://oaklens.art" rel="noopener"
+     title="OAKLENS.ART — NODE 000">
+    <img src="assets/buttons/oaklens-art.svg" width="88" height="31"
+         alt="88x31 button: OAKLENS.ART, node 000 of the network">
+  </a>
 
   <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
           title="Ambient audio">
@@ -556,9 +586,10 @@ body {
 })();
 
 /* ---- THE RING -------------------------------------------------
-   The wireframe torus, live. A trimmed cut of the demos/ring.html
-   engine: emissive buffer + two-mip Gaussian bloom, dust motes,
-   vessel guides. Pre-launch state: every socket dark but one —
+   The wireframe torus, live. A trimmed cut of the ring engine:
+   emissive buffer + filter-free mip-chain bloom, mip-res floor
+   catch + dither, reactive dust, vessel guides, frame governor.
+   Pre-launch state: every socket dark but one —
    node 000 burns at the origin — while a survey packet laps the
    coil, testing the line in each discipline's color.
    Degrades: no canvas → CSS fallback ring; reduced motion →
@@ -614,11 +645,18 @@ body {
   /* quality tiers — the governor sheds these in order if frames run long */
   var Q = { wideBloom: true, moteStride: 1 };
   var DPRCAP = 1.5;
+  /* device-pixel budget: small viewports (phones) get their FULL
+     native DPR — thin additive lines alias badly when rendered
+     below native res and upscaled (the jagged-edge artifact).
+     A 3x phone at ~330k CSS px costs less than a desktop at 1.5,
+     so crispness there is free; big screens stay capped. */
+  var PXBUDGET = 3.4e6;
 
   var W, H, DPR, RMAJ, CX, CY;
   function resize() {
     W = innerWidth; H = innerHeight;
-    DPR = Math.min(devicePixelRatio || 1, DPRCAP);
+    DPR = Math.min(devicePixelRatio || 1,
+                   Math.max(DPRCAP, Math.sqrt(PXBUDGET / (W * H))));
     canvas.width = em.width = W * DPR;
     canvas.height = em.height = H * DPR;
     for (var i = 0; i < mips.length; i++) {
@@ -697,6 +735,7 @@ body {
   var pkt = 0;                       /* survey packet position, 0..1 */
   var catIdx = 0;
   var cycleCur = mix(RED, CATS[0], 0);
+  var floorCur = { r: 255, g: 0, b: 0 };   /* floor eases toward the packet */
   var out = {};
 
   function project(ux, uy, uz, cosS, sinS, cosT, sinT) {
@@ -735,7 +774,7 @@ body {
           gov.tier++;
           if (gov.tier === 1) Q.wideBloom = false;
           else if (gov.tier === 2) Q.moteStride = 2;
-          else { DPRCAP = 1; resize(); }
+          else { DPRCAP = 1; PXBUDGET = 0; resize(); }   /* native-DPR privilege revoked too */
         }
         gov.acc = 0; gov.n = 0;
       }
@@ -748,6 +787,7 @@ body {
       if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
       var target = CATS[catIdx];
       cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
+      floorCur = mix(floorCur, mix(RED, cycleCur, 0.55), Math.min(1, dt * 1.2));
       /* a dark socket occasionally flickers — trying to come online */
       if (now > flickerAt) {
         sockets[1 + ((Math.random() * (SOCKETS - 1)) | 0)].flash = 1;
@@ -939,6 +979,24 @@ body {
       mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
       src = mips[k].c;
     }
+
+    /* the floor — the room catches the packet's light. Painted into
+       the 1/4 mip AFTER the chain is built (so it never compounds
+       into the deeper mips) and BEFORE the dither (so the noise
+       grains it too): 1/16 the pixels of a full-res fill, and the
+       bilinear upscale keeps the falloff liquid. Unlit ground stays
+       absolute #000 — this is light landing on the floor, not a
+       background wash. Alphas are 2x the retired full-res floor
+       because mip 0 composites at 0.5. */
+    var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
+    var fg = fx.createRadialGradient(fw / 2, fh * 1.18, 0, fw / 2, fh * 1.18, fh * 0.8);
+    fg.addColorStop(0, col(floorCur, 0.26));
+    fg.addColorStop(0.5, col(floorCur, 0.06));
+    fg.addColorStop(1, col(floorCur, 0));
+    fx.globalCompositeOperation = 'lighter';
+    fx.fillStyle = fg;
+    fx.fillRect(0, fh * 0.3, fw, fh * 0.7);
+    fx.globalCompositeOperation = 'source-over';
 
     /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
        full-res pass): the bloom halos are where 8-bit banding lives,
