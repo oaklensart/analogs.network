@@ -51,7 +51,7 @@
 /* ============================================================
    ANALOGS.NETWORK — pre-init placeholder
    One page. No dependencies. No build step. Minimal inline JS
-   (ambient audio + rare orbit glitches / whispers — page degrades
+   (ambient audio + the ring engine + rare whispers — page degrades
    to fully static without it).
    Palette (3): OLED black #000 · signal red #FF0000 · paper #E0E0E0
    ============================================================ */
@@ -215,88 +215,6 @@ body::after {
   pointer-events: none;
 }
 .no-canvas .ring-fallback { display: block; }
-
-/* ---- orbiting callsign -------------------------------------- */
-
-.orbit-anchor {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 0; height: 0;
-  pointer-events: none;
-}
-.orbit-label {
-  position: absolute;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  color: rgba(255,20,20,0.9);
-  text-shadow: 0 0 8px rgba(255,0,0,0.8);
-  white-space: nowrap;
-  offset-path: ellipse(68vmin 20vmin at 0 0);
-  offset-rotate: 0deg;
-  animation: orbit 36s linear infinite, orbit-depth 36s linear infinite;
-}
-@supports not (offset-path: ellipse(1px 1px at 0 0)) {
-  .orbit-label { transform: translate(-50%, 14vmin); animation: none; }
-}
-@keyframes orbit {
-  from { offset-distance: 0%; }
-  to   { offset-distance: 100%; }
-}
-/* 3D cinematic depth for the pass */
-@keyframes orbit-depth {
-  0%   { opacity: 0.8; transform: scale(0.9); }
-  25%  { opacity: 1;   transform: scale(1.15); filter: drop-shadow(0 0 12px rgba(255,0,0,1)); }
-  50%  { opacity: 0.8; transform: scale(0.9); }
-  75%  { opacity: 0.15; transform: scale(0.65); filter: none; }
-  100% { opacity: 0.8; transform: scale(0.9); }
-}
-/* echo trail — afterimages of light chasing the callsign */
-.orbit-trail i {
-  position: absolute;
-  width: 3px; height: 3px;
-  border-radius: 50%;
-  background: #ff2222;
-  box-shadow: 0 0 6px rgba(255,0,0,0.8);
-  offset-path: ellipse(68vmin 20vmin at 0 0);
-  offset-rotate: 0deg;
-  animation: orbit 36s linear infinite, trail-depth 36s linear infinite;
-}
-.orbit-trail i:nth-child(1) { --o: 0.60; animation-delay: -35.4s; }
-.orbit-trail i:nth-child(2) { --o: 0.44; animation-delay: -34.8s; }
-.orbit-trail i:nth-child(3) { --o: 0.31; animation-delay: -34.2s; width: 2.5px; height: 2.5px; }
-.orbit-trail i:nth-child(4) { --o: 0.20; animation-delay: -33.6s; width: 2.5px; height: 2.5px; }
-.orbit-trail i:nth-child(5) { --o: 0.12; animation-delay: -33s;   width: 2px; height: 2px; }
-.orbit-trail i:nth-child(6) { --o: 0.06; animation-delay: -32.4s; width: 2px; height: 2px; }
-/* same depth cycle as the label, scaled down to each echo's brightness */
-@keyframes trail-depth {
-  0%   { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
-  25%  { opacity: var(--o);              transform: scale(1.15); }
-  50%  { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
-  75%  { opacity: calc(var(--o) * 0.12); transform: scale(0.6); }
-  100% { opacity: calc(var(--o) * 0.75); transform: scale(0.9); }
-}
-@supports not (offset-path: ellipse(1px 1px at 0 0)) {
-  .orbit-trail { display: none; }
-}
-
-/* orbit glitch — the callsign hops onto the wrong track for a moment.
-   g1: a meridian-style vertical orbit. g2: a tilted inclination. */
-.orbit-anchor.g1 .orbit-label, .orbit-anchor.g1 .orbit-trail i { offset-path: ellipse(20vmin 60vmin at 0 0); }
-.orbit-anchor.g2 .orbit-label, .orbit-anchor.g2 .orbit-trail i { offset-path: ellipse(55vmin 38vmin at 0 0); }
-.orbit-anchor.g2 { transform: rotate(-28deg); }
-.orbit-anchor.glitching .orbit-label {
-  color: var(--white);
-  text-shadow: -1px 0 rgba(255,0,0,0.9), 1px 0 rgba(224,224,224,0.5), 0 0 8px rgba(255,0,0,0.8);
-  filter: blur(0.4px);
-}
-
-@media (max-width: 560px) {
-  .orbit-label { font-size: 0.54rem; offset-path: ellipse(48vmin 12vmin at 0 0); }
-  .orbit-trail i { offset-path: ellipse(48vmin 12vmin at 0 0); }
-  .orbit-anchor.g1 .orbit-label, .orbit-anchor.g1 .orbit-trail i { offset-path: ellipse(12vmin 42vmin at 0 0); }
-  .orbit-anchor.g2 .orbit-label, .orbit-anchor.g2 .orbit-trail i { offset-path: ellipse(38vmin 26vmin at 0 0); }
-}
 
 /* ---- transmission whispers ----------------------------------- */
 
@@ -500,13 +418,11 @@ body::after {
 /* ---- motion off ---------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .orbit-label,
   .msg h1 .dots::after, .msg h1 .cur,
   body::after, .frame i, .audio-toggle.on .eq i,
-  .orbit-trail i, .whisper.show { animation: none; }
+  .whisper.show { animation: none; }
   .msg h1 .dots::after { width: auto; }
-  .orbit-label { offset-distance: 12%; opacity: 0.9; }
-  .orbit-trail, .whisper { display: none; }
+  .whisper { display: none; }
 }
 </style>
 </head>
@@ -533,10 +449,6 @@ body::after {
   <canvas id="ring" aria-hidden="true"></canvas>
   <div class="ring-fallback" aria-hidden="true"></div>
 
-  <span class="orbit-anchor" aria-hidden="true">
-    <span class="orbit-label">OAKLENS.ART</span>
-    <span class="orbit-trail"><i></i><i></i><i></i><i></i><i></i><i></i></span>
-  </span>
 
   <div class="whisper" id="whisper" aria-hidden="true"></div>
 
@@ -629,15 +541,14 @@ body::after {
 })();
 
 /* ---- late-night broadcast anomalies ---------------------------
-   Random, subtle: the orbit occasionally hops to the wrong track,
-   and cryptic transmissions surface in the dark. The kind of thing
-   a DVD menu does when nobody's been watching for a while — and the
-   longer you leave it on, the weirder it gets: anomalies come more
-   often, and stranger messages unlock deeper into the session. */
+   Random, subtle: cryptic transmissions surface in the dark. The
+   kind of thing a DVD menu does when nobody's been watching for a
+   while — and the longer you leave it on, the weirder it gets:
+   whispers come more often, and stranger messages unlock deeper
+   into the session. */
 (function () {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  var anchor  = document.querySelector('.orbit-anchor');
   var whisper = document.getElementById('whisper');
 
   /* ordered mild → weird; later lines only surface deeper into the session */
@@ -664,23 +575,6 @@ body::after {
   function rand(a, b) { return a + Math.random() * (b - a); }
   /* weirdness: 0 at load → 1 after ~10 minutes on screen */
   function weird() { return Math.min(1, (performance.now() - T0) / 600000); }
-
-  /* orbit glitch: flicker between tracks, ride the wrong one, snap home */
-  (function glitchLoop() {
-    setTimeout(function () {
-      var track = Math.random() < 0.5 ? 'g1' : 'g2';
-      anchor.classList.add('glitching');
-      var flips = 0;
-      (function flip() {
-        anchor.classList.toggle(track);
-        if (++flips < 5) setTimeout(flip, rand(70, 180));
-        else setTimeout(function () {
-          anchor.classList.remove(track, 'glitching');
-        }, rand(1400, 3200));
-      })();
-      glitchLoop();
-    }, rand(40000, 95000) * (1 - 0.55 * weird()));
-  })();
 
   /* whisper: one cryptic line, flickering in a quiet corner */
   whisper.addEventListener('animationend', function () {
@@ -876,7 +770,7 @@ body::after {
     }
 
     /* the coil: ember at rest, ignited behind the survey packet */
-    var SAMPLES = 700, RUN = 7;
+    var SAMPLES = 800, RUN = 4;
     for (k = 0; k < SAMPLES; k += RUN) {
       var midT = ((k + RUN / 2) / SAMPLES) % 1;
       /* distance behind the packet, wrapped */
@@ -904,16 +798,29 @@ body::after {
       ectx.stroke();
     }
 
-    /* the packet head */
+    /* the packet head — a continuous stroke along the same helix as
+       the coil, long enough to bridge the trail's segment grid, so
+       head and trail read as one unbroken filament */
     if (!REDUCED) {
-      for (k = 0; k < 5; k++) {
-        var tt = pkt - k * 0.004; if (tt < 0) tt += 1;
+      var HEAD = 12, SPAN = 0.016;
+      ectx.beginPath();
+      for (k = 0; k <= HEAD; k++) {
+        var tt = pkt - (k / HEAD) * SPAN; if (tt < 0) tt += 1;
         helix(tt, cosS, sinS, cosT, sinT);
-        ectx.fillStyle = col(k === 0 ? mix(cycleCur, WHITE, 0.7) : cycleCur, (1 - k / 5) * 0.9);
-        ectx.beginPath();
-        ectx.arc(out.sx, out.sy, Math.max(0.4, (2.2 - k * 0.3) * out.scale), 0, TAU);
-        ectx.fill();
+        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
       }
+      ectx.strokeStyle = col(cycleCur, 0.45);
+      ectx.lineWidth = 3.2 * out.scale;
+      ectx.stroke();
+      ectx.strokeStyle = col(mix(cycleCur, WHITE, 0.75), 0.95);
+      ectx.lineWidth = 1.1 * out.scale;
+      ectx.stroke();
+      /* hot tip, sitting exactly on the filament's end */
+      helix(pkt, cosS, sinS, cosT, sinT);
+      ectx.fillStyle = col(mix(cycleCur, WHITE, 0.85), 0.95);
+      ectx.beginPath();
+      ectx.arc(out.sx, out.sy, 1.8 * out.scale, 0, TAU);
+      ectx.fill();
     }
 
     /* sockets: dark seats, the odd hopeful flicker, origin alight */
