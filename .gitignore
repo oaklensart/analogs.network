@@ -1,0 +1,7 @@
+# Working docs — the repo is public; the planning docs are not.
+# Keep local copies. See docs/analogs-site-manual.md header.
+docs/
+
+# OS noise
+.DS_Store
+Thumbs.db

@@ -4,15 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ANALOGS.NETWORK &mdash; AWAITING NODES</title>
-<meta name="description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta name="description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join. Awaiting nodes.">
 <link rel="canonical" href="https://analogs.network/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="ANALOGS.NETWORK">
 <meta property="og:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta property="og:description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta property="og:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
 <meta property="og:url" content="https://analogs.network/">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://analogs.network/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta name="twitter:description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta name="twitter:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
+<meta name="twitter:image" content="https://analogs.network/assets/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://analogs.network/#website",
+      "url": "https://analogs.network/",
+      "name": "ANALOGS.NETWORK",
+      "description": "A webring for creatives who run their own corner of the web.",
+      "publisher": { "@id": "https://analogs.network/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://analogs.network/#org",
+      "name": "ANALOGS.NETWORK",
+      "url": "https://analogs.network/",
+      "logo": "https://analogs.network/favicon.svg",
+      "sameAs": [
+        "https://oaklens.art",
+        "https://os.oaklens.art",
+        "https://github.com/oaklensart"
+      ]
+    }
+  ]
+}
+</script>
 <meta name="theme-color" content="#000000">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
@@ -157,78 +189,32 @@ body::after {
   .hud-tr, .hud-bl { display: none; }  /* keep phone corners quiet */
 }
 
-/* ---- globe -------------------------------------------------- */
+/* ---- the ring ------------------------------------------------ */
+/* the wireframe torus, live on canvas — sockets dark, awaiting.
+   Engine is a trimmed cut of demos/ring.html (same light pipeline). */
 
-.globe-wrap {
-  position: relative;
-  width: min(85vmin, 720px);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 0 15px rgba(255,0,0,0.25));
+#ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 
-.globe { width: 100%; height: 100%; overflow: visible; }
-
-.globe .shell   { stroke: rgba(255,0,0,0.40); }
-.globe .lat     { stroke: rgba(255,0,0,0.25); }
-.globe .mer     { stroke: rgba(255,0,0,0.30); }
-
-/* photons (pulsing specular moments) */
-.photons ellipse {
-  fill: none;
-  stroke: #ff3333;
-  stroke-width: 1.5;
-  stroke-dasharray: 1 99;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 6px #ff0000);
+/* static fallback if the engine can't run: a whisper of the ring */
+.ring-fallback {
+  display: none;
+  position: absolute;
+  width: min(78vmin, 640px);
+  aspect-ratio: 1.6;
+  border-radius: 50%;
+  border: 1px solid rgba(255,0,0,0.35);
+  box-shadow: 0 0 40px rgba(255,0,0,0.15), inset 0 0 60px rgba(255,0,0,0.06);
+  transform: rotate(-14deg);
+  pointer-events: none;
 }
-.photon-lat { animation: pulse-dash 6s linear infinite; }
-.photon-mer { transform-box: fill-box; transform-origin: center; }
-.photon-mer.m1 { animation: meridian 16s linear infinite, pulse-dash 5s linear infinite; }
-.photon-mer.m2 { animation: meridian 16s linear infinite -2.667s, pulse-dash 5s linear infinite -1.5s; }
-.photon-mer.m3 { animation: meridian 16s linear infinite -5.333s, pulse-dash 5s linear infinite -3s; }
-
-@keyframes pulse-dash {
-  from { stroke-dashoffset: 100; }
-  to   { stroke-dashoffset: 0; }
-}
-.globe ellipse, .globe circle { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
-
-/* meridians spin: scaleX ≈ cos(t), phase-staggered — a wireframe
-   sphere rotating on its axis. Latitudes hold still (as they would). */
-.globe .mer {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: meridian 16s linear infinite;
-}
-.globe .mer.m2 { animation-delay: -2.667s; }
-.globe .mer.m3 { animation-delay: -5.333s; }
-
-@keyframes meridian {
-  0%     { transform: scaleX(1); }
-  12.5%  { transform: scaleX(0.707); }
-  25%    { transform: scaleX(0); }
-  37.5%  { transform: scaleX(-0.707); }
-  50%    { transform: scaleX(-1); }
-  62.5%  { transform: scaleX(-0.707); }
-  75%    { transform: scaleX(0); }
-  87.5%  { transform: scaleX(0.707); }
-  100%   { transform: scaleX(1); }
-}
-
-/* origin beacon — the first node, pulsing */
-.globe .node-core { fill: var(--red); }
-.globe .node-ring {
-  fill: none; stroke: var(--red); stroke-width: 1;
-  transform-box: fill-box; transform-origin: center;
-  animation: ping 2.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-}
-@keyframes ping {
-  0%   { transform: scale(0.3); opacity: 0.9; }
-  70%  { transform: scale(2.6); opacity: 0; }
-  100% { transform: scale(2.6); opacity: 0; }
-}
+.no-canvas .ring-fallback { display: block; }
 
 /* ---- orbiting callsign -------------------------------------- */
 
@@ -346,16 +332,31 @@ body::after {
 
 /* ---- center message ----------------------------------------- */
 
+/* the whole panel is one link now — the door to os.oaklens.art */
 .msg {
   position: absolute;
   z-index: 2;
+  display: block;
   text-align: center;
+  text-decoration: none;
+  color: inherit;
   padding: clamp(18px, 4vmin, 30px) clamp(22px, 5vmin, 44px);
   background: rgba(0,0,0,0.75);
   border: 1px solid rgba(255,0,0,0.3);
   box-shadow: 0 0 30px rgba(255,0,0,0.15), inset 0 0 20px rgba(255,0,0,0.05);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.msg:hover, .msg:focus-visible {
+  border-color: rgba(255,0,0,0.75);
+  box-shadow: 0 0 45px rgba(255,0,0,0.3), inset 0 0 24px rgba(255,0,0,0.08);
+  outline: none;
+}
+.msg:hover .sub, .msg:focus-visible .sub {
+  color: var(--white);
+  border-color: var(--red);
+  text-shadow: 0 0 12px rgba(255,0,0,0.45);
 }
 
 /* glass catch-light along the panel's top edge */
@@ -418,18 +419,11 @@ body::after {
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(224,224,224,0.55);
-  text-decoration: none;
   border-bottom: 1px solid rgba(255,0,0,0.35);
   padding-bottom: 3px;
   transition: color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease;
 }
 .msg .sub .r { color: rgba(255,0,0,0.9); }
-.msg .sub:hover, .msg .sub:focus-visible {
-  color: var(--white);
-  border-color: var(--red);
-  text-shadow: 0 0 12px rgba(255,0,0,0.45);
-  outline: none;
-}
 
 /* phone: tighten tracking + padding so the nowrap headline always fits */
 @media (max-width: 560px) {
@@ -506,8 +500,8 @@ body::after {
 /* ---- motion off ---------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .globe .mer, .globe .node-ring, .orbit-label,
-  .msg h1 .dots::after, .msg h1 .cur, .photons ellipse,
+  .orbit-label,
+  .msg h1 .dots::after, .msg h1 .cur,
   body::after, .frame i, .audio-toggle.on .eq i,
   .orbit-trail i, .whisper.show { animation: none; }
   .msg h1 .dots::after { width: auto; }
@@ -524,7 +518,7 @@ body::after {
 
   <div class="hud hud-tl">ANALOGS.NETWORK</div>
   <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
-  <div class="hud hud-bl">NODES <span class="r">//</span> 000</div>
+  <div class="hud hud-bl">NODES <span class="r">//</span> 001</div>
   <div class="hud hud-br">EST. 2026</div>
 
   <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
@@ -536,52 +530,23 @@ body::after {
      href="" rel="noopener" target="_blank">
   </a>
 
-  <div class="globe-wrap" aria-hidden="true">
-    <svg class="globe" viewBox="-110 -110 220 220" role="img" aria-label="Wireframe globe, awaiting nodes">
-      <!-- shell -->
-      <circle class="shell" r="100"/>
-      <!-- latitudes (static under axial rotation) -->
-      <ellipse class="lat" cy="0"     rx="100"  ry="28"/>
-      <ellipse class="lat" cy="-50"   rx="86.6" ry="24"/>
-      <ellipse class="lat" cy="50"    rx="86.6" ry="24"/>
-      <ellipse class="lat" cy="-86.6" rx="50"   ry="13"/>
-      <ellipse class="lat" cy="86.6"  rx="50"   ry="13"/>
-      <!-- meridians (spinning) -->
-      <ellipse class="mer m1" rx="100" ry="100"/>
-      <ellipse class="mer m2" rx="100" ry="100"/>
-      <ellipse class="mer m3" rx="100" ry="100"/>
-      
-      <!-- photons -->
-      <g class="photons">
-        <ellipse class="photon-lat" cy="0"     rx="100"  ry="28" pathLength="100"/>
-        <ellipse class="photon-lat" cy="-50"   rx="86.6" ry="24" pathLength="100" style="animation-delay: -1.2s"/>
-        <ellipse class="photon-lat" cy="50"    rx="86.6" ry="24" pathLength="100" style="animation-delay: -3.4s"/>
-        <ellipse class="photon-lat" cy="-86.6" rx="50"   ry="13" pathLength="100" style="animation-delay: -2.1s"/>
-        <ellipse class="photon-lat" cy="86.6"  rx="50"   ry="13" pathLength="100" style="animation-delay: -4.8s"/>
-        <ellipse class="photon-mer m1" rx="100" ry="100" pathLength="100"/>
-        <ellipse class="photon-mer m2" rx="100" ry="100" pathLength="100"/>
-        <ellipse class="photon-mer m3" rx="100" ry="100" pathLength="100"/>
-      </g>
+  <canvas id="ring" aria-hidden="true"></canvas>
+  <div class="ring-fallback" aria-hidden="true"></div>
 
-      <!-- origin beacon: Oakland, roughly (kept clear of the center panel) -->
-      <circle class="node-ring" cx="-55" cy="-48" r="6"/>
-      <circle class="node-core" cx="-55" cy="-48" r="2.4"/>
-    </svg>
-
-    <span class="orbit-anchor" aria-hidden="true">
-      <span class="orbit-label">OAKLENS.ART</span>
-      <span class="orbit-trail"><i></i><i></i><i></i><i></i><i></i><i></i></span>
-    </span>
-  </div>
+  <span class="orbit-anchor" aria-hidden="true">
+    <span class="orbit-label">OAKLENS.ART</span>
+    <span class="orbit-trail"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  </span>
 
   <div class="whisper" id="whisper" aria-hidden="true"></div>
 
-  <div class="msg">
+  <a class="msg" href="https://os.oaklens.art" rel="noopener"
+     aria-label="Awaiting nodes — connecting with you soon. Visit Oaklens OS.">
     <h1>AWAITING NODES<span class="dots"></span><span class="cur" aria-hidden="true"></span></h1>
-    <a class="sub" href="https://os.oaklens.art" rel="noopener">
+    <span class="sub">
       CONNECTING WITH YOU SOON <span class="r">///</span>
-    </a>
-  </div>
+    </span>
+  </a>
 
 </main>
 
@@ -735,6 +700,313 @@ body::after {
       whisperLoop();
     }, rand(22000, 60000) * (1 - 0.6 * weird()));
   })();
+})();
+
+/* ---- THE RING -------------------------------------------------
+   The wireframe torus, live. A trimmed cut of the demos/ring.html
+   engine: emissive buffer + two-mip Gaussian bloom, dust motes,
+   vessel guides. Pre-launch state: every socket dark but one —
+   node 000 burns at the origin — while a survey packet laps the
+   coil, testing the line in each discipline's color.
+   Degrades: no canvas → CSS fallback ring; reduced motion →
+   one static frame; hidden tab → paused. */
+(function () {
+  var canvas = document.getElementById('ring');
+  var mctx = canvas.getContext && canvas.getContext('2d', { alpha: true });
+  if (!mctx) { document.body.classList.add('no-canvas'); return; }
+
+  var TAU = Math.PI * 2;
+  var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.78, PERSP = 1700;
+  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var CATS = [
+    { r: 0,   g: 230, b: 255 },   /* photography */
+    { r: 255, g: 30,  b: 70  },   /* digital art */
+    { r: 255, g: 180, b: 0   },   /* writing */
+    { r: 0,   g: 255, b: 110 },   /* code */
+    { r: 170, g: 50,  b: 255 },   /* music */
+    { r: 255, g: 0,   b: 170 },   /* design */
+    { r: 200, g: 210, b: 255 }    /* architecture */
+  ];
+  var RED = { r: 255, g: 40, b: 30 }, WHITE = { r: 255, g: 255, b: 255 };
+
+  var P3 = false;
+  try { P3 = CSS.supports('color', 'color(display-p3 1 0 0 / 0.5)'); } catch (e) {}
+  function col(c, a) {
+    if (a <= 0) return 'rgba(0,0,0,0)';
+    a = Math.min(1, a);
+    return P3
+      ? 'color(display-p3 ' + (c.r/255).toFixed(3) + ' ' + (c.g/255).toFixed(3) + ' ' + (c.b/255).toFixed(3) + ' / ' + a.toFixed(3) + ')'
+      : 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a.toFixed(3) + ')';
+  }
+  function mix(c1, c2, k) {
+    return { r: Math.round(c1.r + (c2.r - c1.r) * k),
+             g: Math.round(c1.g + (c2.g - c1.g) * k),
+             b: Math.round(c1.b + (c2.b - c1.b) * k) };
+  }
+
+  var em = document.createElement('canvas'), ectx = em.getContext('2d');
+  var mipA = document.createElement('canvas'), aCtx = mipA.getContext('2d');
+  var blurA = document.createElement('canvas'), baCtx = blurA.getContext('2d');
+  var mipB = document.createElement('canvas'), bCtx = mipB.getContext('2d');
+  var blurB = document.createElement('canvas'), bbCtx = blurB.getContext('2d');
+
+  var W, H, DPR, RMAJ, CX, CY;
+  function resize() {
+    W = innerWidth; H = innerHeight;
+    DPR = Math.min(devicePixelRatio || 1, 1.5);
+    canvas.width = em.width = W * DPR;
+    canvas.height = em.height = H * DPR;
+    mipA.width = blurA.width = Math.max(2, (W * DPR / 4) | 0);
+    mipA.height = blurA.height = Math.max(2, (H * DPR / 4) | 0);
+    mipB.width = blurB.width = Math.max(2, (W * DPR / 16) | 0);
+    mipB.height = blurB.height = Math.max(2, (H * DPR / 16) | 0);
+    RMAJ = Math.min(W, H) * 0.34;
+    CX = W / 2; CY = H * 0.5;
+  }
+  resize();
+  addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
+
+  /* sockets: dark seats on the coil; index 0 is node 000, lit */
+  var sockets = [];
+  for (var i = 0; i < SOCKETS; i++) {
+    sockets.push({
+      theta: (i / SOCKETS) * TAU,
+      phi: (i / SOCKETS) * WINDINGS * TAU,
+      flash: 0,
+      tw: Math.random() * TAU
+    });
+  }
+
+  var motes = [];
+  var MOTES = Math.round(Math.min(110, (W * H) / 14000));
+  for (var m = 0; m < MOTES; m++) {
+    motes.push({
+      theta: Math.random() * TAU, phi: Math.random() * TAU,
+      ox: (Math.random() - 0.5) * 0.32, oy: (Math.random() - 0.5) * 0.32,
+      oz: (Math.random() - 0.5) * 0.32,
+      tw: Math.random() * TAU, tws: 0.4 + Math.random() * 1.2
+    });
+  }
+
+  function glowSprite(color) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var g = c.getContext('2d');
+    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, col(WHITE, 1));
+    grad.addColorStop(0.09, col(color, 0.9));
+    grad.addColorStop(0.32, col(color, 0.28));
+    grad.addColorStop(1, col(color, 0));
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+    return c;
+  }
+  var originGlow = glowSprite(WHITE);
+
+  var spin = 0, wobble = 0;
+  var pkt = 0;                       /* survey packet position, 0..1 */
+  var catIdx = 0;
+  var cycleCur = mix(RED, CATS[0], 0);
+  var floorCur = { r: 255, g: 0, b: 0 };
+  var out = {};
+
+  function project(ux, uy, uz, cosS, sinS, cosT, sinT) {
+    var x1 = ux * cosS - uy * sinS;
+    var y1 = uy * cosS + ux * sinS;
+    var y2 = y1 * cosT - uz * sinT;
+    var z2 = y1 * sinT + uz * cosT;
+    var x = x1 * RMAJ, y = y2 * RMAJ, z = z2 * RMAJ;
+    var s = PERSP / (PERSP + z);
+    out.z = z; out.scale = s;
+    out.sx = CX + x * s; out.sy = CY + y * s;
+  }
+  function helix(t, cosS, sinS, cosT, sinT) {
+    var th = t * TAU, ph = t * WINDINGS * TAU;
+    var ring = 1 + TUBE * Math.cos(ph);
+    project(ring * Math.cos(th), ring * Math.sin(th), TUBE * Math.sin(ph), cosS, sinS, cosT, sinT);
+  }
+
+  var lastT = performance.now(), running = true;
+  var flickerAt = lastT + 3000;
+
+  function frame(now) {
+    var dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+
+    if (!REDUCED) {
+      spin += 0.00085 * dt * 60;
+      wobble = Math.sin(now * 0.00006) * 0.1;
+      pkt += dt / 26;                          /* one lap ≈ 26s */
+      if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
+      var target = CATS[catIdx];
+      cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
+      floorCur = mix(floorCur, mix(RED, cycleCur, 0.55), Math.min(1, dt * 1.2));
+      /* a dark socket occasionally flickers — trying to come online */
+      if (now > flickerAt) {
+        sockets[1 + ((Math.random() * (SOCKETS - 1)) | 0)].flash = 1;
+        flickerAt = now + 3500 + Math.random() * 6000;
+      }
+    }
+
+    var tilt = TILT + wobble;
+    var cosS = Math.cos(spin), sinS = Math.sin(spin);
+    var cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+    var ZM = RMAJ * (1 + TUBE);
+
+    ectx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ectx.clearRect(0, 0, W, H);
+    ectx.globalCompositeOperation = 'lighter';
+    ectx.lineCap = 'round';
+
+    /* vessel guides */
+    var g, k, depth;
+    ectx.lineWidth = 0.55;
+    for (g = 0; g < 14; g++) {
+      var gt = (g / 14) * TAU, zsum = 0;
+      ectx.beginPath();
+      for (k = 0; k <= 20; k++) {
+        var gp = (k / 20) * TAU;
+        var rr = 1 + TUBE * Math.cos(gp);
+        project(rr * Math.cos(gt), rr * Math.sin(gt), TUBE * Math.sin(gp), cosS, sinS, cosT, sinT);
+        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
+        zsum += out.z;
+      }
+      depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
+      ectx.strokeStyle = col(RED, 0.08 + 0.18 * Math.pow(depth, 1.8));
+      ectx.stroke();
+    }
+
+    /* the coil: ember at rest, ignited behind the survey packet */
+    var SAMPLES = 700, RUN = 7;
+    for (k = 0; k < SAMPLES; k += RUN) {
+      var midT = ((k + RUN / 2) / SAMPLES) % 1;
+      /* distance behind the packet, wrapped */
+      var behind = pkt - midT; if (behind < 0) behind += 1;
+      var heat = REDUCED ? 0 : Math.max(0, 1 - behind / 0.14);
+      ectx.beginPath();
+      var zs = 0;
+      for (var s2 = 0; s2 <= RUN; s2++) {
+        /* no wrap: WINDINGS is non-integer, so t=1 !== t=0 — a modulo
+           here draws a seam chord across the whole shape */
+        helix(Math.min(1, (k + s2) / SAMPLES), cosS, sinS, cosT, sinT);
+        if (s2 === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
+        zs += out.z;
+      }
+      depth = Math.max(0, (ZM - zs / (RUN + 1)) / (2 * ZM));
+      var da = 0.14 + 0.86 * Math.pow(depth, 1.6);
+      var cc = heat > 0.01 ? mix(RED, cycleCur, heat) : RED;
+      var a1 = da * (0.17 + heat * 0.5);
+      var a2 = da * (0.46 + heat * 0.6);
+      ectx.strokeStyle = col(cc, a1);
+      ectx.lineWidth = (1.6 + heat * 1.6) * out.scale;
+      ectx.stroke();
+      ectx.strokeStyle = col(heat > 0.5 ? mix(cc, WHITE, (heat - 0.5) * 0.8) : cc, a2);
+      ectx.lineWidth = (0.55 + heat * 0.45) * out.scale;
+      ectx.stroke();
+    }
+
+    /* the packet head */
+    if (!REDUCED) {
+      for (k = 0; k < 5; k++) {
+        var tt = pkt - k * 0.004; if (tt < 0) tt += 1;
+        helix(tt, cosS, sinS, cosT, sinT);
+        ectx.fillStyle = col(k === 0 ? mix(cycleCur, WHITE, 0.7) : cycleCur, (1 - k / 5) * 0.9);
+        ectx.beginPath();
+        ectx.arc(out.sx, out.sy, Math.max(0.4, (2.2 - k * 0.3) * out.scale), 0, TAU);
+        ectx.fill();
+      }
+    }
+
+    /* sockets: dark seats, the odd hopeful flicker, origin alight */
+    for (k = 0; k < SOCKETS; k++) {
+      var so = sockets[k];
+      so.flash *= Math.pow(0.05, dt);
+      var ring2 = 1 + TUBE * Math.cos(so.phi);
+      project(ring2 * Math.cos(so.theta), ring2 * Math.sin(so.theta), TUBE * Math.sin(so.phi), cosS, sinS, cosT, sinT);
+      depth = Math.max(0.05, (ZM - out.z) / (2 * ZM));
+      if (k === 0) {
+        /* node 000 — first light, already burning */
+        var pulse = 0.85 + 0.15 * Math.sin(now * 0.002);
+        var gr = 26 * out.scale * pulse;
+        ectx.globalAlpha = 0.9 * depth + 0.1;
+        ectx.drawImage(originGlow, out.sx - gr, out.sy - gr, gr * 2, gr * 2);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = col(WHITE, 0.95);
+        ectx.beginPath();
+        ectx.arc(out.sx, out.sy, 1.7 * out.scale, 0, TAU);
+        ectx.fill();
+      } else {
+        var fa = (0.15 + 0.07 * Math.sin(now * 0.0012 + so.tw) + so.flash * 0.85) * depth;
+        if (fa > 0.02) {
+          ectx.fillStyle = col(so.flash > 0.2 ? mix(RED, WHITE, so.flash * 0.6) : RED, fa);
+          ectx.beginPath();
+          ectx.arc(out.sx, out.sy, (0.9 + so.flash * 1.2) * out.scale, 0, TAU);
+          ectx.fill();
+        }
+      }
+    }
+
+    /* dust */
+    for (k = 0; k < motes.length; k++) {
+      var mo = motes[k];
+      if (!REDUCED) { mo.theta += 0.00005; mo.tw += mo.tws * dt; }
+      var r3 = 1 + TUBE * Math.cos(mo.phi);
+      project(r3 * Math.cos(mo.theta) + mo.ox, r3 * Math.sin(mo.theta) + mo.oy,
+              TUBE * Math.sin(mo.phi) + mo.oz, cosS, sinS, cosT, sinT);
+      depth = Math.max(0, (ZM - out.z) / (2 * ZM));
+      var ma = (0.03 + 0.05 * (0.5 + 0.5 * Math.sin(mo.tw))) * depth;
+      if (ma < 0.012) continue;
+      ectx.fillStyle = col({ r: 255, g: 200, b: 190 }, ma);
+      ectx.beginPath();
+      ectx.arc(out.sx, out.sy, 0.8 * out.scale, 0, TAU);
+      ectx.fill();
+    }
+    ectx.globalCompositeOperation = 'source-over';
+
+    /* composite: floor catch + emissive + bloom */
+    mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    mctx.clearRect(0, 0, W, H);
+    var fg = mctx.createRadialGradient(CX, H * 1.18, 0, CX, H * 1.18, H * 0.8);
+    fg.addColorStop(0, col(floorCur, 0.13));
+    fg.addColorStop(0.5, col(floorCur, 0.03));
+    fg.addColorStop(1, col(floorCur, 0));
+    mctx.fillStyle = fg;
+    mctx.fillRect(0, 0, W, H);
+
+    mctx.globalCompositeOperation = 'lighter';
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.drawImage(em, 0, 0);
+
+    aCtx.clearRect(0, 0, mipA.width, mipA.height);
+    aCtx.drawImage(em, 0, 0, mipA.width, mipA.height);
+    baCtx.clearRect(0, 0, blurA.width, blurA.height);
+    baCtx.filter = 'blur(2px)';
+    baCtx.drawImage(mipA, 0, 0);
+    baCtx.filter = 'none';
+    mctx.globalAlpha = 0.6;
+    mctx.drawImage(blurA, 0, 0, canvas.width, canvas.height);
+
+    bCtx.clearRect(0, 0, mipB.width, mipB.height);
+    bCtx.drawImage(blurA, 0, 0, mipB.width, mipB.height);
+    bbCtx.clearRect(0, 0, blurB.width, blurB.height);
+    bbCtx.filter = 'blur(2.5px)';
+    bbCtx.drawImage(mipB, 0, 0);
+    bbCtx.filter = 'none';
+    mctx.globalAlpha = 0.8;
+    mctx.drawImage(blurB, 0, 0, canvas.width, canvas.height);
+
+    mctx.globalAlpha = 1;
+    mctx.globalCompositeOperation = 'source-over';
+
+    if (!REDUCED && running) requestAnimationFrame(frame);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (REDUCED) return;
+    if (document.hidden) running = false;
+    else if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(frame); }
+  });
+
+  requestAnimationFrame(frame);
 })();
 </script>
 

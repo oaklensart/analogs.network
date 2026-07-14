@@ -905,7 +905,9 @@ function render(now) {
       ectx.beginPath();
       let zSum = 0;
       for (let s = 0; s <= RUN; s++) {
-        helixPoint(((k + s) % SAMPLES) / SAMPLES, cosS, sinS, cosT, sinT, _mote);
+        /* no wrap: WINDINGS is non-integer, so t=1 !== t=0 — a modulo
+           here draws a seam chord across the whole shape */
+        helixPoint(Math.min(1, (k + s) / SAMPLES), cosS, sinS, cosT, sinT, _mote);
         if (s === 0) ectx.moveTo(_mote.sx, _mote.sy);
         else ectx.lineTo(_mote.sx, _mote.sy);
         zSum += _mote.z;
