@@ -376,28 +376,6 @@ body {
   .hud-credit .long { display: none; }
 }
 
-/* ---- node 000 badge — the 88x31 handshake --------------------
-   The old web's calling card. oaklens.art is node 000; its button
-   sits above the EST line like a signature on the terminal. */
-
-.badge88 {
-  position: absolute;
-  bottom: calc(44px + env(safe-area-inset-bottom));
-  right: calc(30px + env(safe-area-inset-right));
-  z-index: 3;
-  display: block;
-  width: 88px;
-  height: 31px;
-  opacity: 0.78;
-  transition: opacity 0.25s ease, filter 0.25s ease;
-}
-.badge88:hover, .badge88:focus-visible {
-  opacity: 1;
-  filter: drop-shadow(0 0 9px rgba(255,0,0,0.5));
-  outline: none;
-}
-.badge88 img { display: block; width: 88px; height: 31px; }
-
 /* ---- motion off ---------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -419,12 +397,11 @@ body {
   <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
   <div class="hud hud-bl">NODES <span class="r">//</span> 001</div>
   <div class="hud hud-br">EST. 2026</div>
+  <!-- No on-site node branding (owner call, 2026-07-14b): the network
+       stands independent. oaklens.art is listed as node 000 in nodes/;
+       its 88x31 button stays HOSTED at assets/buttons/ for the badge
+       system, just not displayed here. -->
 
-  <a class="badge88" href="https://oaklens.art" rel="noopener"
-     title="OAKLENS.ART — NODE 000">
-    <img src="assets/buttons/oaklens-art.svg" width="88" height="31"
-         alt="88x31 button: OAKLENS.ART, node 000 of the network">
-  </a>
 
   <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
           title="Ambient audio">
@@ -802,7 +779,10 @@ body {
       if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
       var target = CATS[catIdx];
       cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
-      floorCur = mix(floorCur, mix(RED, cycleCur, 0.55), Math.min(1, dt * 1.2));
+      /* floor stays RED-dominant (a 55% packet mix washed it toward
+         muted grays — read as the floor fading out after load); the
+         packet only tints it. Idle look matches demos/ring.html. */
+      floorCur = mix(floorCur, mix(RED, cycleCur, 0.25), Math.min(1, dt * 1.2));
       /* a dark socket occasionally flickers — trying to come online */
       if (now > flickerAt) {
         sockets[1 + ((Math.random() * (SOCKETS - 1)) | 0)].flash = 1;
@@ -1007,13 +987,13 @@ body {
        background wash. Alphas are 2x the retired full-res floor
        because mip 0 composites at 0.5. */
     var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
-    var fg = fx.createRadialGradient(fw / 2, fh * 1.18, 0, fw / 2, fh * 1.18, fh * 0.8);
-    fg.addColorStop(0, col(floorCur, 0.26));
-    fg.addColorStop(0.5, col(floorCur, 0.06));
+    var fg = fx.createRadialGradient(fw / 2, fh * 1.18, 0, fw / 2, fh * 1.18, fh * 0.85);
+    fg.addColorStop(0, col(floorCur, 0.32));
+    fg.addColorStop(0.5, col(floorCur, 0.08));
     fg.addColorStop(1, col(floorCur, 0));
     fx.globalCompositeOperation = 'lighter';
     fx.fillStyle = fg;
-    fx.fillRect(0, fh * 0.3, fw, fh * 0.7);
+    fx.fillRect(0, fh * 0.28, fw, fh * 0.72);
     fx.globalCompositeOperation = 'source-over';
 
     /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
