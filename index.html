@@ -80,39 +80,10 @@ body {
 
 [hidden] { display: none !important; }
 
-/* ---- atmosphere: vignette + film grain ----------------------- */
-
-/* vignette — pull the edges of the void in */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse at center,
-              transparent 52%, rgba(0,0,0,0.4) 100%);
-  pointer-events: none;
-  z-index: 4;
-}
-
-/* analog grain — monochrome, screen-blended so it lives in the glows */
-body::after {
-  content: '';
-  position: fixed;
-  inset: -50%;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 240px 240px;
-  opacity: 0.05;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 5;
-  animation: grain 8s steps(10) infinite;
-}
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  20%      { transform: translate(-2%, 3%); }
-  40%      { transform: translate(3%, -2%); }
-  60%      { transform: translate(-3%, -3%); }
-  80%      { transform: translate(2%, 2%); }
-}
+/* ---- ground: pure OLED black ---------------------------------
+   No vignette, no grain, no floor wash (owner call, 2026-07-14):
+   the ring and its light speak for themselves against absolute
+   black. Anti-banding lives inside the engine (mip-res dither). */
 
 /* ---- stage ------------------------------------------------ */
 
@@ -125,18 +96,6 @@ body::after {
            calc(20px + env(safe-area-inset-right))
            calc(20px + env(safe-area-inset-bottom))
            calc(20px + env(safe-area-inset-left));
-}
-
-/* faint red floor-glow, bottom of the void */
-.stage::before {
-  content: '';
-  position: absolute;
-  left: 50%; bottom: -32vh;
-  width: 130vw; height: 60vh;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse closest-side,
-              rgba(255,0,0,0.15), rgba(255,0,0,0.02) 45%, transparent 72%);
-  pointer-events: none;
 }
 
 /* ---- corner brackets (terminal frame) ---------------------- */
@@ -419,7 +378,7 @@ body::after {
 
 @media (prefers-reduced-motion: reduce) {
   .msg h1 .dots::after, .msg h1 .cur,
-  body::after, .frame i, .audio-toggle.on .eq i,
+  .frame i, .audio-toggle.on .eq i,
   .whisper.show { animation: none; }
   .msg h1 .dots::after { width: auto; }
   .whisper { display: none; }
@@ -738,7 +697,6 @@ body::after {
   var pkt = 0;                       /* survey packet position, 0..1 */
   var catIdx = 0;
   var cycleCur = mix(RED, CATS[0], 0);
-  var floorCur = { r: 255, g: 0, b: 0 };
   var out = {};
 
   function project(ux, uy, uz, cosS, sinS, cosT, sinT) {
@@ -790,7 +748,6 @@ body::after {
       if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
       var target = CATS[catIdx];
       cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
-      floorCur = mix(floorCur, mix(RED, cycleCur, 0.55), Math.min(1, dt * 1.2));
       /* a dark socket occasionally flickers — trying to come online */
       if (now > flickerAt) {
         sockets[1 + ((Math.random() * (SOCKETS - 1)) | 0)].flash = 1;
@@ -960,16 +917,10 @@ body::after {
     }
     ectx.globalCompositeOperation = 'source-over';
 
-    /* composite: floor catch + emissive + bloom */
+    /* composite: pure black ground + emissive + bloom */
     mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     mctx.fillStyle = '#000';                 /* opaque black: 'overlay'
                                                 dither stays neutral here */
-    mctx.fillRect(0, 0, W, H);
-    var fg = mctx.createRadialGradient(CX, H * 1.18, 0, CX, H * 1.18, H * 0.8);
-    fg.addColorStop(0, col(floorCur, 0.13));
-    fg.addColorStop(0.5, col(floorCur, 0.03));
-    fg.addColorStop(1, col(floorCur, 0));
-    mctx.fillStyle = fg;
     mctx.fillRect(0, 0, W, H);
 
     mctx.globalCompositeOperation = 'lighter';
@@ -996,8 +947,10 @@ body::after {
     var dx1 = mips[0].x;
     var mw = mips[0].c.width, mh = mips[0].c.height;
     var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
-    dx1.globalCompositeOperation = 'overlay';
-    dx1.globalAlpha = 0.14;
+    /* source-atop clips the noise to pixels that GLOW — 'overlay'
+       bleeds onto the transparent regions and grays the pure black */
+    dx1.globalCompositeOperation = 'source-atop';
+    dx1.globalAlpha = 0.12;
     dx1.drawImage(noise,
       (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
       sw, sh, 0, 0, mw, mh);
