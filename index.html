@@ -707,8 +707,10 @@ body {
     });
   }
 
+  /* fine volumetric bits — digital particulate suspended in the
+     vacuum; the FIELD is the effect, no single mote reads as a dot */
   var motes = [];
-  var MOTES = Math.round(Math.min(110, (W * H) / 14000));
+  var MOTES = Math.round(Math.min(160, (W * H) / 10000));
   for (var m = 0; m < MOTES; m++) {
     motes.push({
       theta: Math.random() * TAU, phi: Math.random() * TAU,
@@ -818,9 +820,12 @@ body {
     ectx.globalCompositeOperation = 'lighter';
     ectx.lineCap = 'round';
 
-    /* vessel guides */
+    /* vessel guides — the hull. Kept clearly visible (owner call,
+       2026-07-14b — the full FARRED sink had buried it): the depth
+       ramp holds 25% warm red even far-side, alpha floor/gain up,
+       stroke a touch wider so the bloom catches it. */
     var g, k, depth;
-    ectx.lineWidth = 0.55;
+    ectx.lineWidth = 0.65;
     for (g = 0; g < 14; g++) {
       var gt = (g / 14) * TAU, zsum = 0;
       ectx.beginPath();
@@ -832,7 +837,7 @@ body {
         zsum += out.z;
       }
       depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
-      ectx.strokeStyle = col(mix(FARRED, RED, depth), 0.08 + 0.18 * Math.pow(depth, 1.8));
+      ectx.strokeStyle = col(mix(FARRED, RED, 0.25 + 0.75 * depth), 0.14 + 0.28 * Math.pow(depth, 1.6));
       ectx.stroke();
     }
 
@@ -952,12 +957,12 @@ body {
         ma += boost * (0.5 + 0.5 * tw2);
         ectx.fillStyle = col(mix(DUST, cycleCur, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
         ectx.beginPath();
-        ectx.arc(out.sx, out.sy, (0.8 + boost * 1.8) * out.scale, 0, TAU);
+        ectx.arc(out.sx, out.sy, (0.45 + boost * 1.0) * out.scale, 0, TAU);
         ectx.fill();
       } else if (ma >= 0.012) {
         var bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
         if (!buckets[bi]) buckets[bi] = new Path2D();
-        var mr = 0.8 * out.scale;
+        var mr = 0.5 * out.scale;
         buckets[bi].moveTo(out.sx + mr, out.sy);
         buckets[bi].arc(out.sx, out.sy, mr, 0, TAU);
       }
