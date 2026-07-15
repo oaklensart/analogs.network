@@ -856,25 +856,27 @@ body {
   var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
   var DUST = { r: 255, g: 200, b: 190 };
   var gov = { warm: 0, acc: 0, n: 0, tier: 0, bounces: 0, probing: false };
-  var GOVKEY = 'analogs.govtier';
+  var GOVKEY = 'analogs.govtier2';  /* v5 renumbered the tiers — new key */
   /* one function owns the tier ladder so init (sessionStorage) and the
-     runtime governor can't drift apart. The ladder, least→most visible:
-     ① widest bloom mip off  ② half the dust  ③ retina privilege revoked
-     ④ render at 0.75× res   ⑤ 0.6× res + bloom stride 2
-     ⑥ bloom stride 3 + stroke LOD (genuinely CPU-bound last resort)
+     runtime governor can't drift apart. Ladder v5 (2026-07-15d —
+     reordered: the lighting IS the product, so the governor sheds
+     PIXELS before it sheds LIGHT):
+     ① half the dust           ② retina privilege revoked
+     ③ render at 0.75× res     ④ 0.6× res + bloom stride 2
+     ⑤ bloom stride 3          ⑥ room-glow mip off + stroke LOD (last resort)
      Resolution is the big lever: raster cost ∝ area, and (measured,
      owner FF 2026-07-15) Gecko only GPU-accelerates canvases under a
-     size ceiling between 1.7M and 3.9M px — ⑤ puts a 2560×1517 window
-     at 1.4M px, back on the GPU path entirely. */
+     size ceiling between 1.7M and 3.9M px — ④ puts a 2560×1517 window
+     at 1.4M px, back on the GPU path with the full bloom stack intact. */
   function applyTier(t) {
     gov.tier = t;
-    Q.wideBloom = t < 1;
-    Q.moteStride = t >= 2 ? 2 : 1;
-    Q.bloomStride = t >= 6 ? 3 : (t >= 5 ? 2 : 1);
+    Q.moteStride = t >= 1 ? 2 : 1;
+    Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
+    Q.wideBloom = t < 6;
     Q.lod = t >= 6 ? 2 : 1;
-    var cap = t >= 3 ? 1 : 1.5;
-    var bud = t >= 3 ? 0 : BUDGET0;
-    var rs  = t >= 5 ? 0.6 : (t >= 4 ? 0.75 : 1);
+    var cap = t >= 2 ? 1 : 1.5;
+    var bud = t >= 2 ? 0 : BUDGET0;
+    var rs  = t >= 4 ? 0.6 : (t >= 3 ? 0.75 : 1);
     if (cap !== DPRCAP || bud !== PXBUDGET || rs !== RESSCALE) {
       DPRCAP = cap; PXBUDGET = bud; RESSCALE = rs;
       resize();
