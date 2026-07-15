@@ -605,7 +605,9 @@ body {
    one static frame; hidden tab → paused. */
 (function () {
   var canvas = document.getElementById('ring');
-  var mctx = canvas.getContext && canvas.getContext('2d', { alpha: true });
+  /* alpha:false — the ground is opaque black every frame; an opaque
+     backing store lets WebKit/Gecko skip the page-compositing blend */
+  var mctx = canvas.getContext && canvas.getContext('2d', { alpha: false });
   if (!mctx) { document.body.classList.add('no-canvas'); return; }
 
   var TAU = Math.PI * 2;
@@ -652,14 +654,16 @@ body {
   }
 
   /* quality tiers — the governor sheds these in order if frames run long */
-  var Q = { wideBloom: true, moteStride: 1 };
+  var Q = { wideBloom: true, moteStride: 1, lod: 1 };
   var DPRCAP = 1.5;
   /* device-pixel budget: small viewports (phones) get their FULL
      native DPR — thin additive lines alias badly when rendered
      below native res and upscaled (the jagged-edge artifact).
      A 3x phone at ~330k CSS px costs less than a desktop at 1.5,
-     so crispness there is free; big screens stay capped. */
-  var PXBUDGET = 3.4e6;
+     so crispness there is free; big screens stay capped.
+     4.8e6 keeps a 1080p desktop at DPR 1.5 while big windows now
+     genuinely cap (see the resize() fix). */
+  var PXBUDGET = 4.8e6;
 
   /* static screen-space roll — a touch off-axis so the instrument
      reads as an OBJECT placed in the room, not a screensaver motif.
@@ -716,8 +720,17 @@ body {
 
   function resize() {
     W = innerWidth; H = innerHeight;
+    /* 🐛 budget-floor fix (2026-07-15): the old
+       max(DPRCAP, sqrt(budget/area)) let the 1.5 floor OVERRIDE the
+       budget on big windows — a 2560x1440 desktop rendered two 8.3M-px
+       buffers, past WebKit's canvas cache (silent CPU fallback = the
+       desktop-Safari chug). Now: small viewports may exceed DPRCAP up
+       to the budget (the phone privilege), big viewports respect the
+       budget with a floor of 1. */
+    var budgetDPR = Math.sqrt(PXBUDGET / (W * H));
     DPR = Math.min(devicePixelRatio || 1,
-                   Math.max(DPRCAP, Math.sqrt(PXBUDGET / (W * H))));
+                   budgetDPR >= DPRCAP ? budgetDPR
+                                       : Math.max(1, Math.min(DPRCAP, budgetDPR)));
     canvas.width = em.width = W * DPR;
     canvas.height = em.height = H * DPR;
     for (var i = 0; i < mips.length; i++) {
@@ -836,6 +849,41 @@ body {
   var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
   var DUST = { r: 255, g: 200, b: 190 };
   var gov = { warm: 0, acc: 0, n: 0, tier: 0 };
+  var GOVKEY = 'analogs.govtier';
+  /* one function owns the tier ladder so init (sessionStorage) and the
+     runtime governor can't drift apart */
+  function applyTier(t) {
+    gov.tier = t;
+    Q.wideBloom = t < 1;                 /* ① widest bloom mip off */
+    Q.moteStride = t >= 2 ? 2 : 1;       /* ② half the dust */
+    if (t >= 3 && DPRCAP !== 1) { DPRCAP = 1; PXBUDGET = 0; resize(); } /* ③ DPR 1 */
+    Q.lod = t >= 4 ? 2 : 1;              /* ④ stroke-density shed (Gecko is path-bound) */
+  }
+  /* a browser that chugged once starts pre-shed for the session — the
+     old governor took 10-20s of bad frames to find the floor */
+  try {
+    var t0 = Math.min(4, +sessionStorage.getItem(GOVKEY) || 0);
+    if (t0 > 0) applyTier(t0);
+  } catch (e) {}
+
+  /* floor sprite cache — the per-frame createRadialGradient was the one
+     gradient still built in the hot loop (Gecko rebuilds gradient LUTs
+     each time). Baked ~240px wide, rebuilt only when the eased color
+     crosses a 32-level quantization step or the mip resizes; bilinear
+     upscale + the dither keep it band-free. */
+  var floorSpr = document.createElement('canvas');
+  var floorKey = -1, floorW = 0;
+  function bakeFloor(fw, fh) {
+    var sw = 240, k = sw / fw, sh = Math.max(16, Math.round(fh * 0.72 * k));
+    floorSpr.width = sw; floorSpr.height = sh;
+    var g = floorSpr.getContext('2d');
+    var fg = g.createRadialGradient(sw / 2, fh * 0.9 * k, 0, sw / 2, fh * 0.9 * k, fh * 0.85 * k);
+    fg.addColorStop(0, col(floorCur, 0.32));
+    fg.addColorStop(0.5, col(floorCur, 0.08));
+    fg.addColorStop(1, col(floorCur, 0));
+    g.fillStyle = fg;
+    g.fillRect(0, 0, sw, sh);
+  }
 
   /* error containment: an engine exception degrades to the static CSS
      fallback ring — never a black void (degrade-quietly discipline) */
@@ -854,16 +902,17 @@ body {
     var dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
-    /* frame-time governor: after warmup, shed quality in tiers instead
-       of chugging — wide bloom mip, then half the motes, then DPR 1 */
-    if (!REDUCED && ++gov.warm > 120) {
+    /* frame-time governor v2: shed quality in tiers instead of chugging.
+       Hastier than v1 (40-frame warmup, 60-frame windows, double-shed
+       when drastically over) — users judge the first five seconds; the
+       old 120/90 cadence took 10-20s of bad frames to find the floor. */
+    if (!REDUCED && ++gov.warm > 40) {
       gov.acc += dt; gov.n++;
-      if (gov.n >= 90) {
-        if (gov.acc / gov.n > 0.026 && gov.tier < 3) {
-          gov.tier++;
-          if (gov.tier === 1) Q.wideBloom = false;
-          else if (gov.tier === 2) Q.moteStride = 2;
-          else { DPRCAP = 1; PXBUDGET = 0; resize(); }   /* native-DPR privilege revoked too */
+      if (gov.n >= 60) {
+        var gavg = gov.acc / gov.n;
+        if (gavg > 0.026 && gov.tier < 4) {
+          applyTier(Math.min(4, gov.tier + (gavg > 0.04 ? 2 : 1)));
+          try { sessionStorage.setItem(GOVKEY, String(gov.tier)); } catch (e) {}
         }
         gov.acc = 0; gov.n = 0;
       }
@@ -904,7 +953,7 @@ body {
        stroke a touch wider so the bloom catches it. */
     var g, k, depth;
     ectx.lineWidth = 0.65;
-    for (g = 0; g < 14; g++) {
+    for (g = 0; g < 14; g += Q.lod) {
       var gt = (g / 14) * TAU, zsum = 0;
       ectx.beginPath();
       for (k = 0; k <= 20; k++) {
@@ -919,8 +968,10 @@ body {
       ectx.stroke();
     }
 
-    /* the coil: ember at rest, ignited behind the survey packet */
-    var SAMPLES = 800, RUN = 4;
+    /* the coil: ember at rest, ignited behind the survey packet.
+       tier-4 RUN is 6, not 8 — the packet head's 0.016 span must
+       still cover ≥2 runs (§3.4 detachment bug) */
+    var SAMPLES = 800, RUN = Q.lod > 1 ? 6 : 4;
     for (k = 0; k < SAMPLES; k += RUN) {
       var midT = ((k + RUN / 2) / SAMPLES) % 1;
       /* distance behind the packet, wrapped */
@@ -1093,13 +1144,10 @@ body {
        background wash. Alphas are 2x the retired full-res floor
        because mip 0 composites at 0.5. */
     var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
-    var fg = fx.createRadialGradient(fw / 2, fh * 1.18, 0, fw / 2, fh * 1.18, fh * 0.85);
-    fg.addColorStop(0, col(floorCur, 0.32));
-    fg.addColorStop(0.5, col(floorCur, 0.08));
-    fg.addColorStop(1, col(floorCur, 0));
+    var fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3);
+    if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
     fx.globalCompositeOperation = 'lighter';
-    fx.fillStyle = fg;
-    fx.fillRect(0, fh * 0.28, fw, fh * 0.72);
+    fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
     fx.globalCompositeOperation = 'source-over';
 
     /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
