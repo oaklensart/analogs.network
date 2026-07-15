@@ -614,6 +614,46 @@ body {
   var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.84, PERSP = 1700;
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ── presentation profile (2026-07-16) ─────────────────────
+     The LOOK is a deliberate choice by device class — never the
+     governor's. LEAN is the phone look (owner call): thin jewel
+     lines on OLED black — quiet halos, no room-glow wash, dither
+     nearly off, and a RAISED depth floor (without the wide bloom
+     to catch it, the stock depth curve drops the far rim into
+     pure black and the torus dissolves — when the bloom comes
+     down, the curve must come up). FULL is the desktop look.
+     Test overrides: ?look=lean|full · ?tier=0..6 (locks the
+     governor); both also read from the #hash. */
+  function qparam(k) {
+    try {
+      var s = new URLSearchParams(location.search).get(k);
+      return s !== null ? s : new URLSearchParams(location.hash.slice(1)).get(k);
+    } catch (e) { return null; }
+  }
+  var QLOOK = qparam('look'), QTIER = qparam('tier');
+  var LEAN = QLOOK === 'lean' || (QLOOK !== 'full' &&
+    matchMedia('(pointer: coarse)').matches &&
+    Math.min(window.innerWidth, window.innerHeight) <= 700);
+  /* the knobs each look owns */
+  var MIP_A      = LEAN ? [0.5, 0.35, 0] : [0.5, 0.54, 0.45];
+                    /* mips[0]/[2]/[3] composite alphas. FULL was
+                       0.5/0.62/0.5 — pared 2026-07-16 (owner: full
+                       intensity read as "product/game"; same
+                       physics, quieter mid halo + room glow). */
+  var DITHER_A   = LEAN ? 0.06 : 0.12;  /* grain reads as codec noise on phones */
+  var DEPTH_EXP  = LEAN ? 1.45 : 1.6;
+  var DEPTH_LIFT = LEAN ? 0.07 : 0;     /* raises every depth-alpha floor */
+  var NODE_DFLOOR = LEAN ? 0.16 : 0.05; /* far-side sockets stay legible */
+  /* depth → alpha: floor + gain·depth^exp. The LEAN lift moves
+     weight from the gain to the floor — peak brightness unchanged,
+     far rim comes up. */
+  function depthA(floor, gain, depth) {
+    return floor + DEPTH_LIFT + (gain - DEPTH_LIFT) * Math.pow(depth, DEPTH_EXP);
+  }
+  console.info('[ring] look=' + (LEAN ? 'lean' : 'full') +
+               (QLOOK ? ' (forced)' : '') +
+               (QTIER !== null ? ' · tier locked at ' + QTIER : ''));
+
   var CATS = [
     { r: 0,   g: 230, b: 255 },   /* photography */
     { r: 255, g: 30,  b: 70  },   /* digital art */
@@ -653,8 +693,13 @@ body {
     mips.push({ c: mc, x: mc.getContext('2d') });
   }
 
-  /* quality tiers — the governor sheds these in order if frames run long */
-  var Q = { wideBloom: true, moteStride: 1, lod: 1 };
+  /* quality tiers — the governor sheds these in order if frames run long.
+     🐛 bloomStride MUST be initialized here (fixed 2026-07-16): v5 only
+     set it inside applyTier(), so a fresh tab that never shed computed
+     `bloomTick % undefined` = NaN in the stride guard and the mip chain
+     NEVER rebuilt — no halos, no room glow, no floor, on every browser
+     ("the stripped lighting" bug). */
+  var Q = { wideBloom: true, moteStride: 1, bloomStride: 1, lod: 1 };
   var DPRCAP = 1.5;
   /* device-pixel budget: small viewports (phones) get their FULL
      native DPR — thin additive lines alias badly when rendered
@@ -676,6 +721,7 @@ body {
   var BOKEH = 1;                    /* 0 disables the dust depth-of-field */
 
   var W, H, DPR, RMAJ, CX, CY;
+  var FLOORB = 1;               /* ring-bottom fraction of H (set in resize) */
 
   /* ---- viewport fit ---------------------------------------------
      RMAJ was min(W,H)·k centered at 0.5H — but the tilted torus is
@@ -758,6 +804,10 @@ body {
     RMAJ = fitTorus(availW, availH);
     CX = W / 2 - (_bb[0] + _bb[1]) / 2;
     CY = top + pad + availH / 2 - (_bb[2] + _bb[3]) / 2;
+    /* LEAN: the floor pool anchors under the ring's bottom rim — on
+       tall portrait screens the viewport-bottom anchor put all the
+       light behind the panel ("the floor is not visible"). */
+    FLOORB = Math.max(0.5, Math.min(1, (CY + _bb[3]) / H));
   }
   resize();
   addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
@@ -855,8 +905,9 @@ body {
   var headX = -9999, headY = -9999, orgX = -9999, orgY = -9999;
   var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
   var DUST = { r: 255, g: 200, b: 190 };
-  var gov = { warm: 0, acc: 0, n: 0, tier: 0, bounces: 0, probing: false };
-  var GOVKEY = 'analogs.govtier2';  /* v5 renumbered the tiers — new key */
+  var gov = { warm: 0, acc: 0, n: 0, work: 0, lastW: 0, tier: 0,
+              bounces: 0, probing: false, skip: 0, locked: QTIER !== null };
+  var GOVKEY = 'analogs.govtier3';  /* v6 — tier only; bounces never persist */
   /* one function owns the tier ladder so init (sessionStorage) and the
      runtime governor can't drift apart. Ladder v5 (2026-07-15d —
      reordered: the lighting IS the product, so the governor sheds
@@ -869,6 +920,7 @@ body {
      size ceiling between 1.7M and 3.9M px — ④ puts a 2560×1517 window
      at 1.4M px, back on the GPU path with the full bloom stack intact. */
   function applyTier(t) {
+    if (t !== gov.tier) console.info('[gov] tier ' + gov.tier + ' → ' + t);
     gov.tier = t;
     Q.moteStride = t >= 1 ? 2 : 1;
     Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
@@ -880,18 +932,31 @@ body {
     if (cap !== DPRCAP || bud !== PXBUDGET || rs !== RESSCALE) {
       DPRCAP = cap; PXBUDGET = bud; RESSCALE = rs;
       resize();
+      /* the resize itself reallocates six canvases and hitches — those
+         frames must not be measured or every tier change (either
+         direction) reads as a failure of the tier it just applied.
+         This was v5's ratchet: climb probes tripped over their own
+         resize, "bounced", and two bounces locked the tier for the
+         whole session. */
+      gov.skip = 12;
     }
+    gov.acc = 0; gov.n = 0; gov.work = 0;
   }
   var bloomTick = 0;
   function saveGov() {
-    try { sessionStorage.setItem(GOVKEY, gov.tier + ':' + gov.bounces); } catch (e) {}
+    try { sessionStorage.setItem(GOVKEY, String(gov.tier)); } catch (e) {}
   }
-  /* a browser that chugged once starts pre-shed for the session */
   try {
-    var s0 = (sessionStorage.getItem(GOVKEY) || '').split(':');
-    var t0 = Math.min(6, +s0[0] || 0);
-    gov.bounces = Math.min(2, +s0[1] || 0);
-    if (t0 > 0) applyTier(t0);
+    if (gov.locked) {
+      applyTier(Math.max(0, Math.min(6, +QTIER || 0)));
+    } else {
+      /* start pre-shed if this tab chugged before — but ALWAYS re-probe:
+         bounces reset every load, so a stale tier can heal (v5 persisted
+         the bounce lockout and a bad first load stripped the lighting
+         for the rest of the session — the "uniformly reduced" bug) */
+      var t0 = Math.min(6, +(sessionStorage.getItem(GOVKEY) || 0) || 0);
+      if (t0 > 0) applyTier(t0);
+    }
   } catch (e) {}
 
   /* floor sprite cache — the per-frame createRadialGradient was the one
@@ -927,28 +992,40 @@ body {
   }
 
   function draw(now) {
-    var dt = Math.min(0.05, (now - lastT) / 1000);
+    var raw = (now - lastT) / 1000;        /* governor sees the truth */
+    var dt = Math.min(0.05, raw);          /* simulation stays clamped */
     lastT = now;
+    var w0 = performance.now();
 
-    /* frame-time governor v2: shed quality in tiers instead of chugging.
-       Hastier than v1 (40-frame warmup, 60-frame windows, double-shed
-       when drastically over) — users judge the first five seconds; the
-       old 120/90 cadence took 10-20s of bad frames to find the floor. */
-    if (!REDUCED && ++gov.warm > 15) {
-      gov.acc += dt; gov.n++;
+    /* frame-time governor v6: a safety valve, not an art director.
+       v5 judged startup jank (15-frame warmup), shed 3 tiers at a
+       blow, measured its own resize hitches as climb failures, and
+       persisted the lockout — the ratchet only turned one way and
+       every real device ended up stripped. v6: 40-frame warmup,
+       resize frames skipped, ±1 sheds (2 in emergencies), UNCLAMPED
+       deltas (v5 accumulated the 50ms-clamped dt — its >80ms branch
+       was dead code), the climb also trusts frame WORK time (rAF
+       deltas can't tell "16.7ms because vsync" from "because busy"),
+       and bounces reset every load. ?tier=N locks it entirely. */
+    if (!REDUCED && !gov.locked && ++gov.warm > 40) {
+      if (gov.skip > 0) { gov.skip--; }
+      else {
+      gov.acc += raw; gov.n++; gov.work += gov.lastW;
       /* windows close at 60 frames — or at 20 when things are dire, so
          a browser at 8fps reaches relief in seconds, not half a minute */
       var gavg = gov.acc / Math.max(1, gov.n);
       if (gov.n >= 60 || (gov.n >= 20 && gavg > 0.08)) {
+        var wavg = gov.work / Math.max(1, gov.n);
         if (gavg > 0.026 && gov.tier < 6) {
           /* a shed right after a climb = the climb failed; two failed
              climbs per session and the governor stops hunting */
           if (gov.probing) { gov.bounces++; gov.probing = false; }
-          applyTier(Math.min(6, gov.tier + (gavg > 0.08 ? 3 : gavg > 0.04 ? 2 : 1)));
+          applyTier(Math.min(6, gov.tier + (gavg > 0.08 ? 2 : 1)));
           saveGov();
-        } else if (gavg < 0.0175 && gov.tier > 0 && gov.bounces < 2) {
-          /* comfortably at refresh rate — probe one tier lighter, so
-             we settle on the LIGHTEST tier that's actually fast */
+        } else if ((gavg < 0.0175 || wavg < 0.012) && gov.tier > 0 && gov.bounces < 2) {
+          /* comfortably at refresh rate — or the frame WORK is light
+             and the slow deltas are just vsync jitter — probe one
+             tier lighter: settle on the LIGHTEST tier that's fast */
           gov.probing = true;
           applyTier(gov.tier - 1);
           saveGov();
@@ -956,7 +1033,8 @@ body {
           gov.probing = false;             /* climb held — keep it */
           saveGov();
         }
-        gov.acc = 0; gov.n = 0;
+        gov.acc = 0; gov.n = 0; gov.work = 0;
+      }
       }
     }
 
@@ -1006,7 +1084,7 @@ body {
         zsum += out.z;
       }
       depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
-      ectx.strokeStyle = col(mix(FARRED, RED, 0.25 + 0.75 * depth), 0.14 + 0.28 * Math.pow(depth, 1.6));
+      ectx.strokeStyle = col(mix(FARRED, RED, 0.25 + 0.75 * depth), depthA(0.14, 0.28, depth));
       ectx.stroke();
     }
 
@@ -1029,7 +1107,7 @@ body {
         zs += out.z;
       }
       depth = Math.max(0, (ZM - zs / (RUN + 1)) / (2 * ZM));
-      var da = 0.14 + 0.86 * Math.pow(depth, 1.6);
+      var da = depthA(0.14, 0.86, depth);
       /* far side sinks toward deep desaturated red — atmosphere, not
          just fade (the fiber-optic white→warm falloff, reversed) */
       var emberC = mix(FARRED, RED, Math.min(1, depth * 1.35));
@@ -1078,7 +1156,7 @@ body {
       so.flash *= Math.pow(0.05, dt);
       var ring2 = 1 + TUBE * Math.cos(so.phi);
       project(ring2 * Math.cos(so.theta), ring2 * Math.sin(so.theta), TUBE * Math.sin(so.phi), cosS, sinS, cosT, sinT);
-      depth = Math.max(0.05, (ZM - out.z) / (2 * ZM));
+      depth = Math.max(NODE_DFLOOR, (ZM - out.z) / (2 * ZM));
       if (so.lit) {
         var pulse = 0.85 + 0.15 * Math.sin(now * 0.002 + so.tw);
         var gr = (so.lit.white ? 26 : 17) * out.scale * pulse;
@@ -1175,7 +1253,7 @@ body {
        still must be complete). */
     if (REDUCED || (bloomTick++ % Q.bloomStride) === 0) {
       var src = em;
-      var levels = Q.wideBloom ? mips.length : mips.length - 1;
+      var levels = (Q.wideBloom && MIP_A[2] > 0) ? mips.length : mips.length - 1;
       for (k = 0; k < levels; k++) {
         mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
         mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
@@ -1194,7 +1272,11 @@ body {
       var fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3);
       if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
       fx.globalCompositeOperation = 'lighter';
-      fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
+      /* the band's hot zone lives at its bottom edge; LEAN slides the
+         band so that zone straddles the ring's bottom rim instead of
+         hiding behind the bottom UI */
+      var fbot = LEAN ? Math.min(1, FLOORB + 0.12) : 1;
+      fx.drawImage(floorSpr, 0, fh * (fbot - 0.72), fw, fh * 0.72);
       fx.globalCompositeOperation = 'source-over';
 
       /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of
@@ -1207,7 +1289,7 @@ body {
       /* source-atop clips the noise to pixels that GLOW — 'overlay'
          bleeds onto the transparent regions and grays the pure black */
       dx1.globalCompositeOperation = 'source-atop';
-      dx1.globalAlpha = 0.12;
+      dx1.globalAlpha = DITHER_A;
       dx1.drawImage(noise,
         (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
         sw, sh, 0, 0, mw, mh);
@@ -1215,17 +1297,19 @@ body {
       dx1.globalCompositeOperation = 'source-over';
     }
 
-    mctx.globalAlpha = 0.5;
+    mctx.globalAlpha = MIP_A[0];
     mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
-    mctx.globalAlpha = 0.62;
+    mctx.globalAlpha = MIP_A[1];
     mctx.drawImage(mips[2].c, 0, 0, canvas.width, canvas.height);   /* 1/16 — soft scatter */
-    if (Q.wideBloom) {
-      mctx.globalAlpha = 0.5;
+    if (Q.wideBloom && MIP_A[2] > 0) {
+      mctx.globalAlpha = MIP_A[2];
       mctx.drawImage(mips[3].c, 0, 0, canvas.width, canvas.height); /* 1/32 — room glow */
     }
 
     mctx.globalAlpha = 1;
     mctx.globalCompositeOperation = 'source-over';
+
+    gov.lastW = (performance.now() - w0) / 1000;   /* this frame's CPU work */
   }
 
   document.addEventListener('visibilitychange', function () {
