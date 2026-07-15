@@ -409,7 +409,7 @@ body {
 
   <div class="hud hud-tl">ANALOGS.NETWORK</div>
   <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
-  <div class="hud hud-bl">NODES <span class="r">//</span> 001</div>
+  <div class="hud hud-bl">NODES <span class="r">//</span> <span id="node-count">001</span></div>
   <div class="hud hud-br">EST. 2026</div>
   <!-- No on-site node branding (owner call, 2026-07-14b): the network
        stands independent. oaklens.art is listed as node 000 in nodes/;
@@ -609,7 +609,7 @@ body {
   if (!mctx) { document.body.classList.add('no-canvas'); return; }
 
   var TAU = Math.PI * 2;
-  var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.78, PERSP = 1700;
+  var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.84, PERSP = 1700;
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var CATS = [
@@ -661,7 +661,59 @@ body {
      so crispness there is free; big screens stay capped. */
   var PXBUDGET = 3.4e6;
 
+  /* static screen-space roll — a touch off-axis so the instrument
+     reads as an OBJECT placed in the room, not a screensaver motif.
+     Static by design: no parallax, ever. */
+  var ROLL = -0.09;
+  var COSR = Math.cos(ROLL), SINR = Math.sin(ROLL);
+  var WOBBLE_A = 0.1;               /* wobble amplitude (fit accounts for it) */
+  var BOKEH = 1;                    /* 0 disables the dust depth-of-field */
+
   var W, H, DPR, RMAJ, CX, CY;
+
+  /* ---- viewport fit ---------------------------------------------
+     RMAJ was min(W,H)·k centered at 0.5H — but the tilted torus is
+     NOT symmetric on screen: perspective magnifies the near-top rim
+     (~1.28×RMAJ above center vs ~1.05× below — that was the top
+     clipping), and the layout reserved nothing for the HUD bands.
+     The fit is now SOLVED, not tuned: sample the projected
+     silhouette (spin-invariant — the torus is a solid of revolution)
+     at both wobble extremes, scale RMAJ until the box fits the safe
+     rect, then center on the box's true midpoint. Correct at every
+     viewport by construction. Runs only on resize. */
+  var _bb = [0, 0, 0, 0];           /* minX, maxX, minY, maxY */
+  function silhouette(R) {
+    _bb[0] = _bb[2] = 1e9; _bb[1] = _bb[3] = -1e9;
+    for (var w = -1; w <= 1; w += 2) {
+      var t = TILT + w * WOBBLE_A;
+      var cT = Math.cos(t), sT = Math.sin(t);
+      for (var a = 0; a < 48; a++) {
+        var th = a / 48 * TAU, cth = Math.cos(th), sth = Math.sin(th);
+        for (var b = 0; b < 12; b++) {
+          var ph = b / 12 * TAU;
+          var ring = 1 + TUBE * Math.cos(ph);
+          var y1 = ring * sth, uz = TUBE * Math.sin(ph);
+          var s = PERSP / (PERSP + (y1 * sT + uz * cT) * R);
+          var px = ring * cth * R * s, py = (y1 * cT - uz * sT) * R * s;
+          var sx = px * COSR - py * SINR, sy = px * SINR + py * COSR;
+          if (sx < _bb[0]) _bb[0] = sx; if (sx > _bb[1]) _bb[1] = sx;
+          if (sy < _bb[2]) _bb[2] = sy; if (sy > _bb[3]) _bb[3] = sy;
+        }
+      }
+    }
+  }
+  function fitTorus(availW, availH) {
+    var R = Math.min(availW, availH) * 0.42;
+    for (var i = 0; i < 4; i++) {
+      silhouette(R);
+      var k = Math.min(availW / (_bb[1] - _bb[0]), availH / (_bb[3] - _bb[2]));
+      R *= k;
+      if (k > 0.998 && k < 1.002) break;
+    }
+    silhouette(R);                  /* leave _bb at the final box */
+    return R;
+  }
+
   function resize() {
     W = innerWidth; H = innerHeight;
     DPR = Math.min(devicePixelRatio || 1,
@@ -673,8 +725,19 @@ body {
       mips[i].c.width  = Math.max(2, (W * DPR / s) | 0);
       mips[i].c.height = Math.max(2, (H * DPR / s) | 0);
     }
-    RMAJ = Math.min(W, H) * 0.34;
-    CX = W / 2; CY = H * 0.5;
+    /* safe rect: measured from the real HUD, not guessed */
+    var pad = 14, side = 26, top = 44, bot = 56;
+    try {
+      var tl = document.querySelector('.hud-tl');
+      if (tl) top = Math.max(top, tl.getBoundingClientRect().bottom);
+      var at = document.getElementById('audio-toggle');
+      if (at && !at.hidden) bot = Math.max(bot, H - at.getBoundingClientRect().top);
+    } catch (e) {}
+    var availW = Math.max(140, W - side * 2);
+    var availH = Math.max(140, H - top - bot - pad * 2);
+    RMAJ = fitTorus(availW, availH);
+    CX = W / 2 - (_bb[0] + _bb[1]) / 2;
+    CY = top + pad + availH / 2 - (_bb[2] + _bb[3]) / 2;
   }
   resize();
   addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
@@ -756,8 +819,10 @@ body {
     var z2 = y1 * sinT + uz * cosT;
     var x = x1 * RMAJ, y = y2 * RMAJ, z = z2 * RMAJ;
     var s = PERSP / (PERSP + z);
+    var px = x * s, py = y * s;
     out.z = z; out.scale = s;
-    out.sx = CX + x * s; out.sy = CY + y * s;
+    out.sx = CX + px * COSR - py * SINR;   /* static roll — see ROLL */
+    out.sy = CY + px * SINR + py * COSR;
   }
   function helix(t, cosS, sinS, cosT, sinT) {
     var th = t * TAU, ph = t * WINDINGS * TAU;
@@ -817,7 +882,8 @@ body {
       floorCur = mix(floorCur, mix(RED, cycleCur, 0.25), Math.min(1, dt * 1.2));
       /* a dark socket occasionally flickers — trying to come online */
       if (now > flickerAt) {
-        sockets[1 + ((Math.random() * (SOCKETS - 1)) | 0)].flash = 1;
+        var fi = 1 + ((Math.random() * (SOCKETS - 1)) | 0);
+        if (!sockets[fi].lit) sockets[fi].flash = 1;   /* lit seats don't flicker */
         flickerAt = now + 3500 + Math.random() * 6000;
       }
     }
@@ -911,25 +977,26 @@ body {
       headX = out.sx; headY = out.sy;      /* light source for the dust */
     }
 
-    /* sockets: dark seats, the odd hopeful flicker, origin alight */
+    /* sockets: dark seats, the odd hopeful flicker; merged members
+       burn in their discipline color (lit by the registry data
+       island), node 000 white at the origin */
     for (k = 0; k < SOCKETS; k++) {
       var so = sockets[k];
       so.flash *= Math.pow(0.05, dt);
       var ring2 = 1 + TUBE * Math.cos(so.phi);
       project(ring2 * Math.cos(so.theta), ring2 * Math.sin(so.theta), TUBE * Math.sin(so.phi), cosS, sinS, cosT, sinT);
       depth = Math.max(0.05, (ZM - out.z) / (2 * ZM));
-      if (k === 0) {
-        /* node 000 — first light, already burning */
-        var pulse = 0.85 + 0.15 * Math.sin(now * 0.002);
-        var gr = 26 * out.scale * pulse;
+      if (so.lit) {
+        var pulse = 0.85 + 0.15 * Math.sin(now * 0.002 + so.tw);
+        var gr = (so.lit.white ? 26 : 17) * out.scale * pulse;
         ectx.globalAlpha = 0.9 * depth + 0.1;
-        ectx.drawImage(originGlow, out.sx - gr, out.sy - gr, gr * 2, gr * 2);
+        ectx.drawImage(so.lit.sprite, out.sx - gr, out.sy - gr, gr * 2, gr * 2);
         ectx.globalAlpha = 1;
-        ectx.fillStyle = col(WHITE, 0.95);
+        ectx.fillStyle = so.lit.white ? col(WHITE, 0.95) : col(mix(so.lit.c, WHITE, 0.55), 0.95);
         ectx.beginPath();
-        ectx.arc(out.sx, out.sy, 1.7 * out.scale, 0, TAU);
+        ectx.arc(out.sx, out.sy, (so.lit.white ? 1.7 : 1.4) * out.scale, 0, TAU);
         ectx.fill();
-        orgX = out.sx; orgY = out.sy;      /* second light source */
+        if (so.lit.white) { orgX = out.sx; orgY = out.sy; }  /* second light source */
       } else {
         var fa = (0.15 + 0.07 * Math.sin(now * 0.0012 + so.tw) + so.flash * 0.85) * depth;
         if (fa > 0.02) {
@@ -956,8 +1023,15 @@ body {
       project(r3 * Math.cos(mo.theta) + mo.ox, r3 * Math.sin(mo.theta) + mo.oy,
               TUBE * Math.sin(mo.phi) + mo.oz, cosS, sinS, cosT, sinT);
       depth = Math.max(0, (ZM - out.z) / (2 * ZM));
+      /* fake bokeh — circle of confusion by depth. Points of light
+         off the focal plane (the near rim, where the eye lives)
+         spread into bigger, dimmer discs; the bloom rounds their
+         edge. Costs a couple of muls per mote, no extra buffers.
+         ONLY the dust defocuses — the subject stays tack sharp. */
+      var coc = BOKEH * Math.min(1, Math.abs(out.z + RMAJ * 0.65) / (RMAJ * 1.6));
+      var bk = 1 + 1.8 * coc;
       var tw2 = 0.5 + 0.5 * Math.sin(mo.tw);
-      var ma = (0.03 + 0.05 * tw2) * depth;
+      var ma = (0.03 + 0.05 * tw2) * depth / (bk * Math.sqrt(bk));
       var boost = 0;
       if (!REDUCED) {
         var dx = out.sx - headX, dy = out.sy - headY;
@@ -969,12 +1043,12 @@ body {
         ma += boost * (0.5 + 0.5 * tw2);
         ectx.fillStyle = col(mix(DUST, cycleCur, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
         ectx.beginPath();
-        ectx.arc(out.sx, out.sy, (0.45 + boost * 1.0) * out.scale, 0, TAU);
+        ectx.arc(out.sx, out.sy, (0.45 + boost * 1.0) * out.scale * bk, 0, TAU);
         ectx.fill();
       } else if (ma >= 0.012) {
         var bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
         if (!buckets[bi]) buckets[bi] = new Path2D();
-        var mr = 0.5 * out.scale;
+        var mr = 0.5 * out.scale * bk;
         buckets[bi].moveTo(out.sx + mr, out.sy);
         buckets[bi].arc(out.sx, out.sy, mr, 0, TAU);
       }
@@ -1063,6 +1137,41 @@ body {
     if (document.hidden) running = false;
     else if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(frame); }
   });
+
+  /* ---- the data island -----------------------------------------
+     Git is the database: the registry (nodes/*.json) compiles to
+     manifest.json in CI, and the page fetches it to light the
+     merged sockets + drive the NODES count. Offline / file:// the
+     fetch fails and the inline seed keeps the pre-launch look —
+     the page never depends on the network to render. */
+  var DISC_NAMES = ['Photography', 'Digital Art', 'Writing', 'Code',
+                    'Music', 'Design', 'Architecture'];
+  var litSprites = { origin: originGlow };
+  function applyRegistry(list) {
+    var i, count = 0;
+    for (i = 0; i < SOCKETS; i++) sockets[i].lit = null;
+    for (i = 0; i < list.length; i++) {
+      var n = list[i];
+      if (!n || typeof n.node !== 'number' || n.status !== 'online') continue;
+      count++;
+      var so = sockets[((n.node % SOCKETS) + SOCKETS) % SOCKETS];
+      var di = DISC_NAMES.indexOf(n.disciplines && n.disciplines[0]);
+      var c = di >= 0 ? CATS[di] : RED;
+      var key = n.node === 0 ? 'origin' : String(di);
+      if (!litSprites[key]) litSprites[key] = glowSprite(mix(c, WHITE, 0.15));
+      so.lit = { c: c, sprite: litSprites[key], white: n.node === 0 };
+    }
+    var cnt = document.getElementById('node-count');
+    if (cnt) cnt.textContent = String(count).padStart(3, '0');
+    if (REDUCED) frame(performance.now());   /* re-render the still */
+  }
+  /* inline seed — node 000 always burns, even with no network */
+  applyRegistry([{ node: 0, disciplines: ['Photography'], status: 'online' }]);
+  try {
+    fetch('manifest.json').then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) { if (m && m.nodes && m.nodes.length) applyRegistry(m.nodes); })
+      .catch(function () {});
+  } catch (e) {}
 
   requestAnimationFrame(frame);
 })();

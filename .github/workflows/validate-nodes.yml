@@ -20,3 +20,4 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/validate-nodes.mjs
+      - run: node scripts/build-manifest.mjs --dry

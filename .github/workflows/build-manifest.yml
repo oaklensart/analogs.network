@@ -1,0 +1,41 @@
+name: BUILD // MANIFEST
+
+# The registry compile step: when a node merges (or the compiler
+# changes), recompile manifest.json + status.json and commit them
+# back so Cloudflare Pages serves the fresh data island. The
+# [skip-manifest] guard prevents a commit loop.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nodes/**'
+      - 'scripts/build-manifest.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, '[skip-manifest]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-nodes.mjs
+      - run: node scripts/build-manifest.mjs
+      - name: commit compiled data
+        run: |
+          if git diff --quiet manifest.json status.json; then
+            echo "manifest unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json status.json
+          COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('manifest.json','utf8')).count)")
+          git commit -m "data: compile manifest — ${COUNT} node(s) [skip-manifest]"
+          git push
