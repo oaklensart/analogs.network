@@ -857,12 +857,17 @@ body {
     Q.wideBloom = t < 1;                 /* ① widest bloom mip off */
     Q.moteStride = t >= 2 ? 2 : 1;       /* ② half the dust */
     if (t >= 3 && DPRCAP !== 1) { DPRCAP = 1; PXBUDGET = 0; resize(); } /* ③ DPR 1 */
-    Q.lod = t >= 4 ? 2 : 1;              /* ④ stroke-density shed (Gecko is path-bound) */
+    /* ④/⑤ bloom stride — measured (owner probe, FF 2026-07-15): Gecko
+       runs the chain's canvas→canvas scaled blits on the CPU (126ms of
+       a 129ms frame) and NO other tier touches that cost */
+    Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
+    Q.lod = t >= 5 ? 2 : 1;              /* ⑤ stroke-density shed too */
   }
+  var bloomTick = 0;
   /* a browser that chugged once starts pre-shed for the session — the
      old governor took 10-20s of bad frames to find the floor */
   try {
-    var t0 = Math.min(4, +sessionStorage.getItem(GOVKEY) || 0);
+    var t0 = Math.min(5, +sessionStorage.getItem(GOVKEY) || 0);
     if (t0 > 0) applyTier(t0);
   } catch (e) {}
 
@@ -906,12 +911,14 @@ body {
        Hastier than v1 (40-frame warmup, 60-frame windows, double-shed
        when drastically over) — users judge the first five seconds; the
        old 120/90 cadence took 10-20s of bad frames to find the floor. */
-    if (!REDUCED && ++gov.warm > 40) {
+    if (!REDUCED && ++gov.warm > 15) {
       gov.acc += dt; gov.n++;
-      if (gov.n >= 60) {
-        var gavg = gov.acc / gov.n;
-        if (gavg > 0.026 && gov.tier < 4) {
-          applyTier(Math.min(4, gov.tier + (gavg > 0.04 ? 2 : 1)));
+      /* windows close at 60 frames — or at 20 when things are dire, so
+         a browser at 8fps reaches relief in seconds, not half a minute */
+      var gavg = gov.acc / Math.max(1, gov.n);
+      if (gov.n >= 60 || (gov.n >= 20 && gavg > 0.08)) {
+        if (gavg > 0.026 && gov.tier < 5) {
+          applyTier(Math.min(5, gov.tier + (gavg > 0.08 ? 3 : gavg > 0.04 ? 2 : 1)));
           try { sessionStorage.setItem(GOVKEY, String(gov.tier)); } catch (e) {}
         }
         gov.acc = 0; gov.n = 0;
@@ -1126,46 +1133,52 @@ body {
        bilinear filtering IS the blur (each halving is a proper 2×2
        box average — never skip levels or it undersamples and
        shimmers). No ctx.filter anywhere: identical output on
-       Chromium, WebKit, and Gecko. */
-    var src = em;
-    var levels = Q.wideBloom ? mips.length : mips.length - 1;
-    for (k = 0; k < levels; k++) {
-      mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
-      mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
-      src = mips[k].c;
+       Chromium, WebKit, and Gecko.
+       Tier ④/⑤ bloom stride: rebuild the chain (+floor+dither) every
+       Nth frame and reuse it between — halos change slowly, the sharp
+       emissive stays per-frame. REDUCED renders always rebuild (a
+       still must be complete). */
+    if (REDUCED || (bloomTick++ % Q.bloomStride) === 0) {
+      var src = em;
+      var levels = Q.wideBloom ? mips.length : mips.length - 1;
+      for (k = 0; k < levels; k++) {
+        mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
+        mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
+        src = mips[k].c;
+      }
+
+      /* the floor — the room catches the packet's light. Painted into
+         the 1/4 mip AFTER the chain is built (so it never compounds
+         into the deeper mips) and BEFORE the dither (so the noise
+         grains it too): 1/16 the pixels of a full-res fill, and the
+         bilinear upscale keeps the falloff liquid. Unlit ground stays
+         absolute #000 — this is light landing on the floor, not a
+         background wash. Alphas are 2x the retired full-res floor
+         because mip 0 composites at 0.5. */
+      var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
+      var fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3);
+      if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
+      fx.globalCompositeOperation = 'lighter';
+      fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
+      fx.globalCompositeOperation = 'source-over';
+
+      /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of
+         a full-res pass): the bloom halos are where 8-bit banding
+         lives, gray noise is neutral on black, and the bilinear
+         upscale melts the jitter into film-grain-scale texture. */
+      var dx1 = mips[0].x;
+      var mw = mips[0].c.width, mh = mips[0].c.height;
+      var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
+      /* source-atop clips the noise to pixels that GLOW — 'overlay'
+         bleeds onto the transparent regions and grays the pure black */
+      dx1.globalCompositeOperation = 'source-atop';
+      dx1.globalAlpha = 0.12;
+      dx1.drawImage(noise,
+        (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
+        sw, sh, 0, 0, mw, mh);
+      dx1.globalAlpha = 1;
+      dx1.globalCompositeOperation = 'source-over';
     }
-
-    /* the floor — the room catches the packet's light. Painted into
-       the 1/4 mip AFTER the chain is built (so it never compounds
-       into the deeper mips) and BEFORE the dither (so the noise
-       grains it too): 1/16 the pixels of a full-res fill, and the
-       bilinear upscale keeps the falloff liquid. Unlit ground stays
-       absolute #000 — this is light landing on the floor, not a
-       background wash. Alphas are 2x the retired full-res floor
-       because mip 0 composites at 0.5. */
-    var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
-    var fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3);
-    if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
-    fx.globalCompositeOperation = 'lighter';
-    fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
-    fx.globalCompositeOperation = 'source-over';
-
-    /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
-       full-res pass): the bloom halos are where 8-bit banding lives,
-       'overlay' gray noise is neutral on black, and the bilinear
-       upscale melts the jitter into film-grain-scale texture. */
-    var dx1 = mips[0].x;
-    var mw = mips[0].c.width, mh = mips[0].c.height;
-    var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
-    /* source-atop clips the noise to pixels that GLOW — 'overlay'
-       bleeds onto the transparent regions and grays the pure black */
-    dx1.globalCompositeOperation = 'source-atop';
-    dx1.globalAlpha = 0.12;
-    dx1.drawImage(noise,
-      (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
-      sw, sh, 0, 0, mw, mh);
-    dx1.globalAlpha = 1;
-    dx1.globalCompositeOperation = 'source-over';
 
     mctx.globalAlpha = 0.5;
     mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
