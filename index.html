@@ -664,6 +664,8 @@ body {
      4.8e6 keeps a 1080p desktop at DPR 1.5 while big windows now
      genuinely cap (see the resize() fix). */
   var PXBUDGET = 4.8e6;
+  var BUDGET0 = PXBUDGET;         /* restored if the governor climbs back */
+  var RESSCALE = 1;               /* tier ④/⑤ sub-native resolution */
 
   /* static screen-space roll — a touch off-axis so the instrument
      reads as an OBJECT placed in the room, not a screensaver motif.
@@ -731,6 +733,11 @@ body {
     DPR = Math.min(devicePixelRatio || 1,
                    budgetDPR >= DPRCAP ? budgetDPR
                                        : Math.max(1, Math.min(DPRCAP, budgetDPR)));
+    /* governor tiers ④/⑤: render sub-native and let CSS upscale — the
+       raster cost lever, and (measured, owner FF 2026-07-15) the one
+       that crosses back under Gecko's canvas-acceleration size ceiling
+       (~2M px: 1.7M px ran GPU at 60fps, 3.9M ran CPU at 7) */
+    DPR = Math.max(0.5, DPR * RESSCALE);
     canvas.width = em.width = W * DPR;
     canvas.height = em.height = H * DPR;
     for (var i = 0; i < mips.length; i++) {
@@ -848,26 +855,40 @@ body {
   var headX = -9999, headY = -9999, orgX = -9999, orgY = -9999;
   var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
   var DUST = { r: 255, g: 200, b: 190 };
-  var gov = { warm: 0, acc: 0, n: 0, tier: 0 };
+  var gov = { warm: 0, acc: 0, n: 0, tier: 0, bounces: 0, probing: false };
   var GOVKEY = 'analogs.govtier';
   /* one function owns the tier ladder so init (sessionStorage) and the
-     runtime governor can't drift apart */
+     runtime governor can't drift apart. The ladder, least→most visible:
+     ① widest bloom mip off  ② half the dust  ③ retina privilege revoked
+     ④ render at 0.75× res   ⑤ 0.6× res + bloom stride 2
+     ⑥ bloom stride 3 + stroke LOD (genuinely CPU-bound last resort)
+     Resolution is the big lever: raster cost ∝ area, and (measured,
+     owner FF 2026-07-15) Gecko only GPU-accelerates canvases under a
+     size ceiling between 1.7M and 3.9M px — ⑤ puts a 2560×1517 window
+     at 1.4M px, back on the GPU path entirely. */
   function applyTier(t) {
     gov.tier = t;
-    Q.wideBloom = t < 1;                 /* ① widest bloom mip off */
-    Q.moteStride = t >= 2 ? 2 : 1;       /* ② half the dust */
-    if (t >= 3 && DPRCAP !== 1) { DPRCAP = 1; PXBUDGET = 0; resize(); } /* ③ DPR 1 */
-    /* ④/⑤ bloom stride — measured (owner probe, FF 2026-07-15): Gecko
-       runs the chain's canvas→canvas scaled blits on the CPU (126ms of
-       a 129ms frame) and NO other tier touches that cost */
-    Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
-    Q.lod = t >= 5 ? 2 : 1;              /* ⑤ stroke-density shed too */
+    Q.wideBloom = t < 1;
+    Q.moteStride = t >= 2 ? 2 : 1;
+    Q.bloomStride = t >= 6 ? 3 : (t >= 5 ? 2 : 1);
+    Q.lod = t >= 6 ? 2 : 1;
+    var cap = t >= 3 ? 1 : 1.5;
+    var bud = t >= 3 ? 0 : BUDGET0;
+    var rs  = t >= 5 ? 0.6 : (t >= 4 ? 0.75 : 1);
+    if (cap !== DPRCAP || bud !== PXBUDGET || rs !== RESSCALE) {
+      DPRCAP = cap; PXBUDGET = bud; RESSCALE = rs;
+      resize();
+    }
   }
   var bloomTick = 0;
-  /* a browser that chugged once starts pre-shed for the session — the
-     old governor took 10-20s of bad frames to find the floor */
+  function saveGov() {
+    try { sessionStorage.setItem(GOVKEY, gov.tier + ':' + gov.bounces); } catch (e) {}
+  }
+  /* a browser that chugged once starts pre-shed for the session */
   try {
-    var t0 = Math.min(5, +sessionStorage.getItem(GOVKEY) || 0);
+    var s0 = (sessionStorage.getItem(GOVKEY) || '').split(':');
+    var t0 = Math.min(6, +s0[0] || 0);
+    gov.bounces = Math.min(2, +s0[1] || 0);
     if (t0 > 0) applyTier(t0);
   } catch (e) {}
 
@@ -917,9 +938,21 @@ body {
          a browser at 8fps reaches relief in seconds, not half a minute */
       var gavg = gov.acc / Math.max(1, gov.n);
       if (gov.n >= 60 || (gov.n >= 20 && gavg > 0.08)) {
-        if (gavg > 0.026 && gov.tier < 5) {
-          applyTier(Math.min(5, gov.tier + (gavg > 0.08 ? 3 : gavg > 0.04 ? 2 : 1)));
-          try { sessionStorage.setItem(GOVKEY, String(gov.tier)); } catch (e) {}
+        if (gavg > 0.026 && gov.tier < 6) {
+          /* a shed right after a climb = the climb failed; two failed
+             climbs per session and the governor stops hunting */
+          if (gov.probing) { gov.bounces++; gov.probing = false; }
+          applyTier(Math.min(6, gov.tier + (gavg > 0.08 ? 3 : gavg > 0.04 ? 2 : 1)));
+          saveGov();
+        } else if (gavg < 0.0175 && gov.tier > 0 && gov.bounces < 2) {
+          /* comfortably at refresh rate — probe one tier lighter, so
+             we settle on the LIGHTEST tier that's actually fast */
+          gov.probing = true;
+          applyTier(gov.tier - 1);
+          saveGov();
+        } else if (gov.probing) {
+          gov.probing = false;             /* climb held — keep it */
+          saveGov();
         }
         gov.acc = 0; gov.n = 0;
       }
