@@ -4,21 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ANALOGS.NETWORK &mdash; AWAITING NODES</title>
-<meta name="description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta name="description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join. Awaiting nodes.">
 <link rel="canonical" href="https://analogs.network/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="ANALOGS.NETWORK">
 <meta property="og:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta property="og:description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta property="og:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
 <meta property="og:url" content="https://analogs.network/">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://analogs.network/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta name="twitter:description" content="A global network of creatives who run their own corner of the web. Nodes incoming.">
+<meta name="twitter:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
+<meta name="twitter:image" content="https://analogs.network/assets/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://analogs.network/#website",
+      "url": "https://analogs.network/",
+      "name": "ANALOGS.NETWORK",
+      "description": "A webring for creatives who run their own corner of the web.",
+      "publisher": { "@id": "https://analogs.network/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://analogs.network/#org",
+      "name": "ANALOGS.NETWORK",
+      "url": "https://analogs.network/",
+      "logo": "https://analogs.network/favicon.svg",
+      "sameAs": [
+        "https://oaklens.art",
+        "https://os.oaklens.art",
+        "https://github.com/oaklensart"
+      ]
+    }
+  ]
+}
+</script>
 <meta name="theme-color" content="#000000">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 /* ============================================================
    ANALOGS.NETWORK — pre-init placeholder
-   One page. No dependencies. No build step. No JavaScript.
+   One page. No dependencies. No build step. Minimal inline JS
+   (ambient audio + the ring engine + rare whispers — page degrades
+   to fully static without it).
    Palette (3): OLED black #000 · signal red #FF0000 · paper #E0E0E0
    ============================================================ */
 
@@ -44,6 +78,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+[hidden] { display: none !important; }
+
+/* ---- ground: pure OLED black ---------------------------------
+   No vignette, no grain (owner call, 2026-07-14): the ring and its
+   light speak for themselves against absolute black. The floor is
+   back (2026-07-14b) but as EMITTED LIGHT, not a wash — the engine
+   paints it into the 1/4 bloom mip, so unlit ground stays #000 and
+   the dither pass keeps the gradient band-free. */
+
 /* ---- stage ------------------------------------------------ */
 
 .stage {
@@ -55,18 +98,6 @@ body {
            calc(20px + env(safe-area-inset-right))
            calc(20px + env(safe-area-inset-bottom))
            calc(20px + env(safe-area-inset-left));
-}
-
-/* faint red floor-glow, bottom of the void */
-.stage::before {
-  content: '';
-  position: absolute;
-  left: 50%; bottom: -32vh;
-  width: 130vw; height: 60vh;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse closest-side,
-              rgba(255,0,0,0.15), rgba(255,0,0,0.02) 45%, transparent 72%);
-  pointer-events: none;
 }
 
 /* ---- corner brackets (terminal frame) ---------------------- */
@@ -82,6 +113,14 @@ body {
   width: 22px; height: 22px;
   border: 0 solid rgba(255,0,0,0.8);
   filter: drop-shadow(0 0 6px rgba(255,0,0,0.5));
+  animation: corner-breathe 7s ease-in-out infinite;
+}
+.frame i:nth-child(2) { animation-delay: -1.8s; }
+.frame i:nth-child(3) { animation-delay: -3.5s; }
+.frame i:nth-child(4) { animation-delay: -5.2s; }
+@keyframes corner-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
 }
 .frame i:nth-child(1) { top: 0;    left: 0;  border-top-width: 1px; border-left-width: 1px; }
 .frame i:nth-child(2) { top: 0;    right: 0; border-top-width: 1px; border-right-width: 1px; }
@@ -111,130 +150,103 @@ body {
   .hud-tr, .hud-bl { display: none; }  /* keep phone corners quiet */
 }
 
-/* ---- globe -------------------------------------------------- */
+/* ---- the ring ------------------------------------------------ */
+/* the wireframe torus, live on canvas — sockets dark, awaiting.
+   Engine is a trimmed cut of demos/ring.html (same light pipeline). */
 
-.globe-wrap {
-  position: relative;
-  width: min(85vmin, 720px);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 0 15px rgba(255,0,0,0.25));
-}
-
-.globe { width: 100%; height: 100%; overflow: visible; }
-
-.globe .shell   { stroke: rgba(255,0,0,0.40); }
-.globe .lat     { stroke: rgba(255,0,0,0.25); }
-.globe .mer     { stroke: rgba(255,0,0,0.30); }
-
-/* photons (pulsing specular moments) */
-.photons ellipse {
-  fill: none;
-  stroke: #ff3333;
-  stroke-width: 1.5;
-  stroke-dasharray: 1 99;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 6px #ff0000);
-}
-.photon-lat { animation: pulse-dash 6s linear infinite; }
-.photon-mer { transform-box: fill-box; transform-origin: center; }
-.photon-mer.m1 { animation: meridian 16s linear infinite, pulse-dash 5s linear infinite; }
-.photon-mer.m2 { animation: meridian 16s linear infinite -2.667s, pulse-dash 5s linear infinite -1.5s; }
-.photon-mer.m3 { animation: meridian 16s linear infinite -5.333s, pulse-dash 5s linear infinite -3s; }
-
-@keyframes pulse-dash {
-  from { stroke-dashoffset: 100; }
-  to   { stroke-dashoffset: 0; }
-}
-.globe ellipse, .globe circle { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
-
-/* meridians spin: scaleX ≈ cos(t), phase-staggered — a wireframe
-   sphere rotating on its axis. Latitudes hold still (as they would). */
-.globe .mer {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: meridian 16s linear infinite;
-}
-.globe .mer.m2 { animation-delay: -2.667s; }
-.globe .mer.m3 { animation-delay: -5.333s; }
-
-@keyframes meridian {
-  0%     { transform: scaleX(1); }
-  12.5%  { transform: scaleX(0.707); }
-  25%    { transform: scaleX(0); }
-  37.5%  { transform: scaleX(-0.707); }
-  50%    { transform: scaleX(-1); }
-  62.5%  { transform: scaleX(-0.707); }
-  75%    { transform: scaleX(0); }
-  87.5%  { transform: scaleX(0.707); }
-  100%   { transform: scaleX(1); }
-}
-
-/* origin beacon — the first node, pulsing */
-.globe .node-core { fill: var(--red); }
-.globe .node-ring {
-  fill: none; stroke: var(--red); stroke-width: 1;
-  transform-box: fill-box; transform-origin: center;
-  animation: ping 2.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-}
-@keyframes ping {
-  0%   { transform: scale(0.3); opacity: 0.9; }
-  70%  { transform: scale(2.6); opacity: 0; }
-  100% { transform: scale(2.6); opacity: 0; }
-}
-
-/* ---- orbiting callsign -------------------------------------- */
-
-.orbit-anchor {
+#ring {
   position: absolute;
-  top: 50%; left: 50%;
-  width: 0; height: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
   pointer-events: none;
 }
-.orbit-label {
+
+/* static fallback if the engine can't run: a whisper of the ring */
+.ring-fallback {
+  display: none;
   position: absolute;
-  font-size: 0.6rem;
+  width: min(78vmin, 640px);
+  aspect-ratio: 1.6;
+  border-radius: 50%;
+  border: 1px solid rgba(255,0,0,0.35);
+  box-shadow: 0 0 40px rgba(255,0,0,0.15), inset 0 0 60px rgba(255,0,0,0.06);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+.no-canvas .ring-fallback { display: block; }
+
+/* ---- transmission whispers ----------------------------------- */
+
+/* cryptic interference — the menu you left on too long. Flickers in,
+   holds long enough to be read, then slowly melts into the red-black. */
+.whisper {
+  position: absolute;
+  z-index: 1;
+  font-size: 0.66rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
-  color: rgba(255,20,20,0.9);
-  text-shadow: 0 0 8px rgba(255,0,0,0.8);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,60,60,0.8);
+  text-shadow: 0 0 10px rgba(255,0,0,0.55);
+  filter: blur(0.7px);
   white-space: nowrap;
-  offset-path: ellipse(68vmin 20vmin at 0 0);
-  offset-rotate: 0deg;
-  animation: orbit 36s linear infinite, orbit-depth 36s linear infinite;
+  opacity: 0;
+  pointer-events: none;
 }
-@supports not (offset-path: ellipse(1px 1px at 0 0)) {
-  .orbit-label { transform: translate(-50%, 14vmin); animation: none; }
-}
-@keyframes orbit {
-  from { offset-distance: 0%; }
-  to   { offset-distance: 100%; }
-}
-/* 3D cinematic depth for the pass */
-@keyframes orbit-depth {
-  0%   { opacity: 0.8; transform: scale(0.9); }
-  25%  { opacity: 1;   transform: scale(1.15); filter: drop-shadow(0 0 12px rgba(255,0,0,1)); }
-  50%  { opacity: 0.8; transform: scale(0.9); }
-  75%  { opacity: 0.15; transform: scale(0.65); filter: none; }
-  100% { opacity: 0.8; transform: scale(0.9); }
-}
-@media (max-width: 560px) {
-  .orbit-label { font-size: 0.54rem; offset-path: ellipse(48vmin 12vmin at 0 0); }
+.whisper.show { animation: whisper 9s linear forwards; }
+@keyframes whisper {
+  0%   { opacity: 0;    filter: blur(1.6px); }
+  3%   { opacity: 0.95; filter: blur(0.6px); }
+  6%   { opacity: 0.15; filter: blur(0.9px); }
+  9%   { opacity: 0.85; filter: blur(0.6px); }
+  13%  { opacity: 0.3;  filter: blur(0.9px); }
+  17%  { opacity: 0.9;  filter: blur(0.6px); }
+  45%  { opacity: 0.75; filter: blur(0.7px); }
+  /* long decay: dim + defocus until it's just heat in the black */
+  75%  { opacity: 0.32; filter: blur(1.4px); }
+  100% { opacity: 0;    filter: blur(3.5px); }
 }
 
 /* ---- center message ----------------------------------------- */
 
+/* the whole panel is one link now — the door to os.oaklens.art */
 .msg {
   position: absolute;
   z-index: 2;
+  display: block;
   text-align: center;
+  text-decoration: none;
+  color: inherit;
   padding: clamp(18px, 4vmin, 30px) clamp(22px, 5vmin, 44px);
   background: rgba(0,0,0,0.75);
   border: 1px solid rgba(255,0,0,0.3);
   box-shadow: 0 0 30px rgba(255,0,0,0.15), inset 0 0 20px rgba(255,0,0,0.05);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.msg:hover, .msg:focus-visible {
+  border-color: rgba(255,0,0,0.75);
+  box-shadow: 0 0 45px rgba(255,0,0,0.3), inset 0 0 24px rgba(255,0,0,0.08);
+  outline: none;
+}
+.msg:hover .sub, .msg:focus-visible .sub {
+  color: var(--white);
+  border-color: var(--red);
+  text-shadow: 0 0 12px rgba(255,0,0,0.45);
+}
+
+/* glass catch-light along the panel's top edge */
+.msg::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg,
+              transparent, rgba(255,255,255,0.28), transparent);
+  pointer-events: none;
 }
 
 .msg h1 {
@@ -286,17 +298,23 @@ body {
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(224,224,224,0.55);
-  text-decoration: none;
   border-bottom: 1px solid rgba(255,0,0,0.35);
   padding-bottom: 3px;
   transition: color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease;
 }
 .msg .sub .r { color: rgba(255,0,0,0.9); }
-.msg .sub:hover, .msg .sub:focus-visible {
-  color: var(--white);
-  border-color: var(--red);
-  text-shadow: 0 0 12px rgba(255,0,0,0.45);
-  outline: none;
+
+.msg .sub-addr {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(0.5rem, 2vw, 0.62rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(224,224,224,0.35);
+  transition: color 0.25s ease;
+}
+.msg:hover .sub-addr, .msg:focus-visible .sub-addr {
+  color: rgba(224,224,224,0.6);
 }
 
 /* phone: tighten tracking + padding so the nowrap headline always fits */
@@ -304,15 +322,82 @@ body {
   .msg { padding: 15px 16px 17px; max-width: calc(100vw - 36px); }
   .msg h1 { font-size: clamp(0.78rem, 3.7vw, 1.2rem); letter-spacing: 0.2em; margin-right: -0.2em; }
   .msg .sub { letter-spacing: 0.18em; }
+  .msg .sub-addr { letter-spacing: 0.16em; margin-top: 8px; }
+}
+
+/* ---- ambient audio HUD --------------------------------------- */
+
+.audio-toggle {
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: 0;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+.audio-toggle:hover, .audio-toggle:focus-visible {
+  color: var(--white);
+  text-shadow: 0 0 10px rgba(255,0,0,0.4);
+}
+.audio-toggle:focus-visible {
+  outline: 1px solid rgba(255,0,0,0.6);
+  outline-offset: 3px;
+}
+
+/* three-bar level meter — moves only while audio actually plays */
+.audio-toggle .eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 9px;
+}
+.audio-toggle .eq i {
+  width: 2px; height: 3px;
+  background: var(--red);
+  box-shadow: 0 0 4px rgba(255,0,0,0.6);
+  opacity: 0.45;
+}
+.audio-toggle.on .eq i { opacity: 1; animation: eq 1.1s ease-in-out infinite alternate; }
+.audio-toggle.on .eq i:nth-child(1) { animation-duration: 0.9s; }
+.audio-toggle.on .eq i:nth-child(2) { animation-duration: 1.3s; animation-delay: -0.4s; }
+.audio-toggle.on .eq i:nth-child(3) { animation-duration: 0.7s; animation-delay: -0.2s; }
+@keyframes eq {
+  from { height: 2px; }
+  to   { height: 9px; }
+}
+
+/* attribution — CC BY-NC 4.0, quiet but present */
+.hud-credit {
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.48rem;
+  letter-spacing: 0.22em;
+  color: rgba(224,224,224,0.28);
+  text-shadow: none;
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+.hud-credit:hover, .hud-credit:focus-visible { color: rgba(224,224,224,0.7); }
+
+@media (max-width: 560px) {
+  .hud-credit .long { display: none; }
 }
 
 /* ---- motion off ---------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .globe .mer, .globe .node-ring, .orbit-label,
-  .msg h1 .dots::after, .msg h1 .cur, .photons ellipse { animation: none; }
+  .msg h1 .dots::after, .msg h1 .cur,
+  .frame i, .audio-toggle.on .eq i,
+  .whisper.show { animation: none; }
   .msg h1 .dots::after { width: auto; }
-  .orbit-label { offset-distance: 12%; opacity: 0.9; }
+  .whisper { display: none; }
 }
 </style>
 </head>
@@ -324,54 +409,773 @@ body {
 
   <div class="hud hud-tl">ANALOGS.NETWORK</div>
   <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
-  <div class="hud hud-bl">NODES <span class="r">//</span> 000</div>
+  <div class="hud hud-bl">NODES <span class="r">//</span> <span id="node-count">001</span></div>
   <div class="hud hud-br">EST. 2026</div>
+  <!-- No on-site node branding (owner call, 2026-07-14b): the network
+       stands independent. oaklens.art is listed as node 000 in nodes/;
+       its 88x31 button stays HOSTED at assets/buttons/ for the badge
+       system, just not displayed here. -->
 
-  <div class="globe-wrap" aria-hidden="true">
-    <svg class="globe" viewBox="-110 -110 220 220" role="img" aria-label="Wireframe globe, awaiting nodes">
-      <!-- shell -->
-      <circle class="shell" r="100"/>
-      <!-- latitudes (static under axial rotation) -->
-      <ellipse class="lat" cy="0"     rx="100"  ry="28"/>
-      <ellipse class="lat" cy="-50"   rx="86.6" ry="24"/>
-      <ellipse class="lat" cy="50"    rx="86.6" ry="24"/>
-      <ellipse class="lat" cy="-86.6" rx="50"   ry="13"/>
-      <ellipse class="lat" cy="86.6"  rx="50"   ry="13"/>
-      <!-- meridians (spinning) -->
-      <ellipse class="mer m1" rx="100" ry="100"/>
-      <ellipse class="mer m2" rx="100" ry="100"/>
-      <ellipse class="mer m3" rx="100" ry="100"/>
-      
-      <!-- photons -->
-      <g class="photons">
-        <ellipse class="photon-lat" cy="0"     rx="100"  ry="28" pathLength="100"/>
-        <ellipse class="photon-lat" cy="-50"   rx="86.6" ry="24" pathLength="100" style="animation-delay: -1.2s"/>
-        <ellipse class="photon-lat" cy="50"    rx="86.6" ry="24" pathLength="100" style="animation-delay: -3.4s"/>
-        <ellipse class="photon-lat" cy="-86.6" rx="50"   ry="13" pathLength="100" style="animation-delay: -2.1s"/>
-        <ellipse class="photon-lat" cy="86.6"  rx="50"   ry="13" pathLength="100" style="animation-delay: -4.8s"/>
-        <ellipse class="photon-mer m1" rx="100" ry="100" pathLength="100"/>
-        <ellipse class="photon-mer m2" rx="100" ry="100" pathLength="100"/>
-        <ellipse class="photon-mer m3" rx="100" ry="100" pathLength="100"/>
-      </g>
 
-      <!-- origin beacon: Oakland, roughly (kept clear of the center panel) -->
-      <circle class="node-ring" cx="-55" cy="-48" r="6"/>
-      <circle class="node-core" cx="-55" cy="-48" r="2.4"/>
-    </svg>
+  <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
+          title="Ambient audio">
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    AUDIO <span class="r">//</span> <span id="audio-state">OFF</span>
+  </button>
+  <a class="hud hud-credit" id="audio-credit" hidden
+     href="" rel="noopener" target="_blank">
+  </a>
 
-    <span class="orbit-anchor" aria-hidden="true">
-      <span class="orbit-label">OAKLENS.ART</span>
-    </span>
-  </div>
+  <canvas id="ring" aria-hidden="true"></canvas>
+  <div class="ring-fallback" aria-hidden="true"></div>
 
-  <div class="msg">
+
+  <div class="whisper" id="whisper" aria-hidden="true"></div>
+
+  <a class="msg" id="msg-link"
+     aria-label="Become a founding node. Send add me and your URL to themonitor at analogs.network.">
     <h1>AWAITING NODES<span class="dots"></span><span class="cur" aria-hidden="true"></span></h1>
-    <a class="sub" href="https://os.oaklens.art" rel="noopener">
-      CONNECTING WITH YOU SOON <span class="r">///</span>
-    </a>
-  </div>
+    <span class="sub">
+      BECOME A FOUNDING NODE <span class="r">///</span>
+    </span>
+    <span class="sub-addr">
+      SEND "ADD ME" + YOUR URL<br>
+      <span id="tm-addr">THEMONITOR</span>
+    </span>
+  </a>
+  <script>
+  /* assemble the address at runtime — Cloudflare's email obfuscation
+     scans the HTML source for mailto: and @-addresses and replaces them
+     with an encoded blob that requires their decoder script. Building
+     the address in JS keeps it out of the source entirely. */
+  (function () {
+    var u = 'themonitor', d = 'analogs.network';
+    var a = u + '@' + d;
+    var el = document.getElementById('msg-link');
+    var sp = document.getElementById('tm-addr');
+    if (el) el.href = 'mail' + 'to:' + a + '?subject=add%20me&body=my%20site%3A%20';
+    if (sp) sp.textContent = (u + '@' + d).toUpperCase();
+  })();
+  </script>
 
 </main>
+
+<!--
+  Ambient audio: "Ominous and Deep Ambience" by Resaural
+  https://freesound.org/s/467026/ — License: Creative Commons 0 (No Attribution Required)
+  Changes: transcoded to Ogg/Opus and AAC (.m4a) for web delivery under 1MB.
+-->
+<audio id="bgm" loop preload="auto">
+  <source src="assets/audio/ambient-loop.ogg" type="audio/ogg; codecs=opus">
+  <source src="assets/audio/ambient-loop.m4a" type="audio/mp4">
+</audio>
+
+<script>
+(function () {
+  var audio  = document.getElementById('bgm');
+  var btn    = document.getElementById('audio-toggle');
+  var credit = document.getElementById('audio-credit');
+  var state  = document.getElementById('audio-state');
+  var TARGET = 0.75;                 /* background thing — never full blast */
+  var KEY    = 'analogs.audio';
+  var fade   = null;
+
+  btn.hidden = credit.hidden = false;   /* controls only exist if JS runs */
+
+  function pref()    { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function setPref(v){ try { localStorage.setItem(KEY, v); } catch (e) {} }
+
+  function setUI(mode) {              /* 'on' | 'off' | 'standby' */
+    btn.classList.toggle('on', mode === 'on');
+    state.textContent = mode.toUpperCase();
+    btn.setAttribute('aria-pressed', mode === 'on' ? 'true' : 'false');
+  }
+
+  function fadeTo(target, ms, then) {
+    if (fade) cancelAnimationFrame(fade);
+    var from = audio.volume, t0 = performance.now();
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / ms);
+      audio.volume = from + (target - from) * k;
+      if (k < 1) fade = requestAnimationFrame(step);
+      else if (then) then();
+    })(t0);
+  }
+
+  function start() {
+    if (fade) cancelAnimationFrame(fade);
+    audio.volume = 0;
+    var p = audio.play();
+    if (p && p.then) p.then(function () {
+      disarm();
+      setUI('on');
+      fadeTo(TARGET, 3500);
+    }).catch(function () {            /* autoplay blocked: first gesture starts it */
+      setUI('standby');
+      arm();
+    });
+  }
+
+  function stop() {
+    setUI('off');
+    fadeTo(0, 600, function () { audio.pause(); });
+  }
+
+  function kick(e) {
+    if (e.target && btn.contains(e.target)) return;   /* toggle handles itself */
+    disarm();
+    start();
+  }
+  function arm()    { addEventListener('pointerdown', kick); addEventListener('keydown', kick); }
+  function disarm() { removeEventListener('pointerdown', kick); removeEventListener('keydown', kick); }
+
+  btn.addEventListener('click', function () {
+    if (audio.paused) { setPref('on'); start(); }
+    else              { setPref('off'); disarm(); stop(); }
+  });
+
+  if (pref() === 'off') setUI('off');   /* respect a visitor who turned it off */
+  else start();
+})();
+
+/* ---- late-night broadcast anomalies ---------------------------
+   Random, subtle: cryptic transmissions surface in the dark. The
+   kind of thing a DVD menu does when nobody's been watching for a
+   while — and the longer you leave it on, the weirder it gets:
+   whispers come more often, and stranger messages unlock deeper
+   into the session. */
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var whisper = document.getElementById('whisper');
+
+  /* ordered mild → weird; later lines only surface deeper into the session */
+  var MSGS = [
+    'HANDSHAKE INCOMPLETE // RETRYING',
+    'SIGNAL BLEED DETECTED',
+    'CARRIER LOST. CARRIER FOUND.',
+    'UPLINK DREAMING',
+    '37.8044 N / 122.2712 W',
+    'ARE YOU STILL THERE?',
+    'DO NOT ADJUST YOUR TERMINAL',
+    'ECHO OF NODE 000',
+    'THE NETWORK REMEMBERS YOU',
+    'SOMEONE ELSE IS ON THIS FREQUENCY',
+    'IT IS WARM INSIDE THE SIGNAL',
+    'WE NEVER STOPPED BROADCASTING',
+    'NODE 000 IS AWAKE',
+    'YOUR ORBIT IS DECAYING TOO'
+  ];
+
+  var T0 = performance.now();
+  var lastMsg = -1;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  /* weirdness: 0 at load → 1 after ~10 minutes on screen */
+  function weird() { return Math.min(1, (performance.now() - T0) / 600000); }
+
+  /* whisper: one cryptic line, flickering in a quiet corner */
+  whisper.addEventListener('animationend', function () {
+    whisper.classList.remove('show');
+  });
+  (function whisperLoop() {
+    setTimeout(function () {
+      /* the pool deepens with weirdness; never repeat the last line */
+      var unlocked = Math.max(6, Math.ceil(MSGS.length * (0.4 + 0.6 * weird())));
+      var i;
+      do { i = Math.floor(Math.random() * unlocked); } while (i === lastMsg);
+      lastMsg = i;
+      whisper.textContent = MSGS[i];
+      whisper.style.left = (Math.random() < 0.5 ? rand(6, 24) : rand(58, 74)) + '%';
+      whisper.style.top  = (Math.random() < 0.5 ? rand(12, 30) : rand(68, 84)) + '%';
+      whisper.classList.add('show');
+      whisperLoop();
+    }, rand(22000, 60000) * (1 - 0.6 * weird()));
+  })();
+})();
+
+/* ---- THE RING -------------------------------------------------
+   The wireframe torus, live. A trimmed cut of the ring engine:
+   emissive buffer + filter-free mip-chain bloom, mip-res floor
+   catch + dither, reactive dust, vessel guides, frame governor.
+   Pre-launch state: every socket dark but one —
+   node 000 burns at the origin — while a survey packet laps the
+   coil, testing the line in each discipline's color.
+   Degrades: no canvas → CSS fallback ring; reduced motion →
+   one static frame; hidden tab → paused. */
+(function () {
+  var canvas = document.getElementById('ring');
+  var mctx = canvas.getContext && canvas.getContext('2d', { alpha: true });
+  if (!mctx) { document.body.classList.add('no-canvas'); return; }
+
+  var TAU = Math.PI * 2;
+  var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.84, PERSP = 1700;
+  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var CATS = [
+    { r: 0,   g: 230, b: 255 },   /* photography */
+    { r: 255, g: 30,  b: 70  },   /* digital art */
+    { r: 255, g: 180, b: 0   },   /* writing */
+    { r: 0,   g: 255, b: 110 },   /* code */
+    { r: 170, g: 50,  b: 255 },   /* music */
+    { r: 255, g: 0,   b: 170 },   /* design */
+    { r: 200, g: 210, b: 255 }    /* architecture */
+  ];
+  var RED = { r: 255, g: 40, b: 30 }, WHITE = { r: 255, g: 255, b: 255 };
+
+  var P3 = false;
+  try { P3 = CSS.supports('color', 'color(display-p3 1 0 0 / 0.5)'); } catch (e) {}
+  function col(c, a) {
+    if (a <= 0) return 'rgba(0,0,0,0)';
+    a = Math.min(1, a);
+    return P3
+      ? 'color(display-p3 ' + (c.r/255).toFixed(3) + ' ' + (c.g/255).toFixed(3) + ' ' + (c.b/255).toFixed(3) + ' / ' + a.toFixed(3) + ')'
+      : 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a.toFixed(3) + ')';
+  }
+  function mix(c1, c2, k) {
+    return { r: Math.round(c1.r + (c2.r - c1.r) * k),
+             g: Math.round(c1.g + (c2.g - c1.g) * k),
+             b: Math.round(c1.b + (c2.b - c1.b) * k) };
+  }
+
+  var em = document.createElement('canvas'), ectx = em.getContext('2d');
+
+  /* bloom mip chain: bilinear downscales so hardware filtering does ALL
+     the blurring — no ctx.filter (unsupported or slow outside Chromium;
+     its silent no-op was the Safari banding). One step to 1/4, then
+     half-steps 1/8 → 1/16 → 1/32 (half-steps below 1/4 keep the wide
+     halos from undersampling/shimmering). */
+  var mips = [];
+  for (var mi = 0; mi < 4; mi++) {
+    var mc = document.createElement('canvas');
+    mips.push({ c: mc, x: mc.getContext('2d') });
+  }
+
+  /* quality tiers — the governor sheds these in order if frames run long */
+  var Q = { wideBloom: true, moteStride: 1 };
+  var DPRCAP = 1.5;
+  /* device-pixel budget: small viewports (phones) get their FULL
+     native DPR — thin additive lines alias badly when rendered
+     below native res and upscaled (the jagged-edge artifact).
+     A 3x phone at ~330k CSS px costs less than a desktop at 1.5,
+     so crispness there is free; big screens stay capped. */
+  var PXBUDGET = 3.4e6;
+
+  /* static screen-space roll — a touch off-axis so the instrument
+     reads as an OBJECT placed in the room, not a screensaver motif.
+     Static by design: no parallax, ever. */
+  var ROLL = -0.09;
+  var COSR = Math.cos(ROLL), SINR = Math.sin(ROLL);
+  var WOBBLE_A = 0.1;               /* wobble amplitude (fit accounts for it) */
+  var BOKEH = 1;                    /* 0 disables the dust depth-of-field */
+
+  var W, H, DPR, RMAJ, CX, CY;
+
+  /* ---- viewport fit ---------------------------------------------
+     RMAJ was min(W,H)·k centered at 0.5H — but the tilted torus is
+     NOT symmetric on screen: perspective magnifies the near-top rim
+     (~1.28×RMAJ above center vs ~1.05× below — that was the top
+     clipping), and the layout reserved nothing for the HUD bands.
+     The fit is now SOLVED, not tuned: sample the projected
+     silhouette (spin-invariant — the torus is a solid of revolution)
+     at both wobble extremes, scale RMAJ until the box fits the safe
+     rect, then center on the box's true midpoint. Correct at every
+     viewport by construction. Runs only on resize. */
+  var _bb = [0, 0, 0, 0];           /* minX, maxX, minY, maxY */
+  function silhouette(R) {
+    _bb[0] = _bb[2] = 1e9; _bb[1] = _bb[3] = -1e9;
+    for (var w = -1; w <= 1; w += 2) {
+      var t = TILT + w * WOBBLE_A;
+      var cT = Math.cos(t), sT = Math.sin(t);
+      for (var a = 0; a < 48; a++) {
+        var th = a / 48 * TAU, cth = Math.cos(th), sth = Math.sin(th);
+        for (var b = 0; b < 12; b++) {
+          var ph = b / 12 * TAU;
+          var ring = 1 + TUBE * Math.cos(ph);
+          var y1 = ring * sth, uz = TUBE * Math.sin(ph);
+          var s = PERSP / (PERSP + (y1 * sT + uz * cT) * R);
+          var px = ring * cth * R * s, py = (y1 * cT - uz * sT) * R * s;
+          var sx = px * COSR - py * SINR, sy = px * SINR + py * COSR;
+          if (sx < _bb[0]) _bb[0] = sx; if (sx > _bb[1]) _bb[1] = sx;
+          if (sy < _bb[2]) _bb[2] = sy; if (sy > _bb[3]) _bb[3] = sy;
+        }
+      }
+    }
+  }
+  function fitTorus(availW, availH) {
+    var R = Math.min(availW, availH) * 0.42;
+    for (var i = 0; i < 4; i++) {
+      silhouette(R);
+      var k = Math.min(availW / (_bb[1] - _bb[0]), availH / (_bb[3] - _bb[2]));
+      R *= k;
+      if (k > 0.998 && k < 1.002) break;
+    }
+    silhouette(R);                  /* leave _bb at the final box */
+    return R;
+  }
+
+  function resize() {
+    W = innerWidth; H = innerHeight;
+    DPR = Math.min(devicePixelRatio || 1,
+                   Math.max(DPRCAP, Math.sqrt(PXBUDGET / (W * H))));
+    canvas.width = em.width = W * DPR;
+    canvas.height = em.height = H * DPR;
+    for (var i = 0; i < mips.length; i++) {
+      var s = Math.pow(2, i + 2);           /* 4, 8, 16, 32 */
+      mips[i].c.width  = Math.max(2, (W * DPR / s) | 0);
+      mips[i].c.height = Math.max(2, (H * DPR / s) | 0);
+    }
+    /* safe rect: measured from the real HUD, not guessed */
+    var pad = 14, side = 26, top = 44, bot = 56;
+    try {
+      var tl = document.querySelector('.hud-tl');
+      if (tl) top = Math.max(top, tl.getBoundingClientRect().bottom);
+      var at = document.getElementById('audio-toggle');
+      if (at && !at.hidden) bot = Math.max(bot, H - at.getBoundingClientRect().top);
+    } catch (e) {}
+    var availW = Math.max(140, W - side * 2);
+    var availH = Math.max(140, H - top - bot - pad * 2);
+    RMAJ = fitTorus(availW, availH);
+    CX = W / 2 - (_bb[0] + _bb[1]) / 2;
+    CY = top + pad + availH / 2 - (_bb[2] + _bb[3]) / 2;
+  }
+  resize();
+  addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
+
+  /* dither sheet — gray-centered noise, pre-rendered ONCE at 1024².
+     Per frame a randomly-offset crop is blitted over the 1/4 bloom mip
+     with 'overlay' (neutral on black; breaks 8-bit banding in the glows
+     by optical mixing). Must be a drawImage blit: a CanvasPattern fill
+     with a jittered transform re-rasterizes the pattern every frame and
+     costs ~20ms/frame in software paths (measured). */
+  var NOISE_S = 1024;
+  var noise = document.createElement('canvas');
+  noise.width = noise.height = NOISE_S;
+  (function () {
+    var nx = noise.getContext('2d');
+    var id = nx.createImageData(NOISE_S, NOISE_S);
+    for (var i = 0; i < id.data.length; i += 4) {
+      var v = 128 + (((Math.random() + Math.random() - 1) * 30) | 0);
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+      id.data[i + 3] = 255;
+    }
+    nx.putImageData(id, 0, 0);
+  })();
+  /* bake through a clean copy: a putImageData'd canvas can be a slow
+     drawImage source (raw-pixel state) */
+  var noiseBaked = document.createElement('canvas');
+  noiseBaked.width = noiseBaked.height = NOISE_S;
+  noiseBaked.getContext('2d').drawImage(noise, 0, 0);
+  noise = noiseBaked;
+
+  /* sockets: dark seats on the coil; index 0 is node 000, lit */
+  var sockets = [];
+  for (var i = 0; i < SOCKETS; i++) {
+    sockets.push({
+      theta: (i / SOCKETS) * TAU,
+      phi: (i / SOCKETS) * WINDINGS * TAU,
+      flash: 0,
+      tw: Math.random() * TAU
+    });
+  }
+
+  /* fine volumetric bits — digital particulate suspended in the
+     vacuum; the FIELD is the effect, no single mote reads as a dot */
+  var motes = [];
+  var MOTES = Math.round(Math.min(160, (W * H) / 10000));
+  for (var m = 0; m < MOTES; m++) {
+    motes.push({
+      theta: Math.random() * TAU, phi: Math.random() * TAU,
+      ox: (Math.random() - 0.5) * 0.32, oy: (Math.random() - 0.5) * 0.32,
+      oz: (Math.random() - 0.5) * 0.32,
+      tw: Math.random() * TAU, tws: 0.4 + Math.random() * 1.2
+    });
+  }
+
+  function glowSprite(color) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var g = c.getContext('2d');
+    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, col(WHITE, 1));
+    grad.addColorStop(0.09, col(color, 0.9));
+    grad.addColorStop(0.32, col(color, 0.28));
+    grad.addColorStop(1, col(color, 0));
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+    return c;
+  }
+  var originGlow = glowSprite(WHITE);
+
+  var spin = 0, wobble = 0;
+  var pkt = 0;                       /* survey packet position, 0..1 */
+  var catIdx = 0;
+  var cycleCur = mix(RED, CATS[0], 0);
+  var floorCur = { r: 255, g: 0, b: 0 };   /* floor eases toward the packet */
+  var out = {};
+
+  function project(ux, uy, uz, cosS, sinS, cosT, sinT) {
+    var x1 = ux * cosS - uy * sinS;
+    var y1 = uy * cosS + ux * sinS;
+    var y2 = y1 * cosT - uz * sinT;
+    var z2 = y1 * sinT + uz * cosT;
+    var x = x1 * RMAJ, y = y2 * RMAJ, z = z2 * RMAJ;
+    var s = PERSP / (PERSP + z);
+    var px = x * s, py = y * s;
+    out.z = z; out.scale = s;
+    out.sx = CX + px * COSR - py * SINR;   /* static roll — see ROLL */
+    out.sy = CY + px * SINR + py * COSR;
+  }
+  function helix(t, cosS, sinS, cosT, sinT) {
+    var th = t * TAU, ph = t * WINDINGS * TAU;
+    var ring = 1 + TUBE * Math.cos(ph);
+    project(ring * Math.cos(th), ring * Math.sin(th), TUBE * Math.sin(ph), cosS, sinS, cosT, sinT);
+  }
+
+  var lastT = performance.now(), running = true;
+  var flickerAt = lastT + 3000;
+  var headX = -9999, headY = -9999, orgX = -9999, orgY = -9999;
+  var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
+  var DUST = { r: 255, g: 200, b: 190 };
+  var gov = { warm: 0, acc: 0, n: 0, tier: 0 };
+
+  /* error containment: an engine exception degrades to the static CSS
+     fallback ring — never a black void (degrade-quietly discipline) */
+  function frame(now) {
+    try { draw(now); }
+    catch (e) {
+      running = false;
+      canvas.hidden = true;
+      document.body.classList.add('no-canvas');
+      return;
+    }
+    if (!REDUCED && running) requestAnimationFrame(frame);
+  }
+
+  function draw(now) {
+    var dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+
+    /* frame-time governor: after warmup, shed quality in tiers instead
+       of chugging — wide bloom mip, then half the motes, then DPR 1 */
+    if (!REDUCED && ++gov.warm > 120) {
+      gov.acc += dt; gov.n++;
+      if (gov.n >= 90) {
+        if (gov.acc / gov.n > 0.026 && gov.tier < 3) {
+          gov.tier++;
+          if (gov.tier === 1) Q.wideBloom = false;
+          else if (gov.tier === 2) Q.moteStride = 2;
+          else { DPRCAP = 1; PXBUDGET = 0; resize(); }   /* native-DPR privilege revoked too */
+        }
+        gov.acc = 0; gov.n = 0;
+      }
+    }
+
+    if (!REDUCED) {
+      spin += 0.00085 * dt * 60;
+      wobble = Math.sin(now * 0.00006) * 0.1;
+      pkt += dt / 26;                          /* one lap ≈ 26s */
+      if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
+      var target = CATS[catIdx];
+      cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
+      /* floor stays RED-dominant (a 55% packet mix washed it toward
+         muted grays — read as the floor fading out after load); the
+         packet only tints it. Idle look matches demos/ring.html. */
+      floorCur = mix(floorCur, mix(RED, cycleCur, 0.25), Math.min(1, dt * 1.2));
+      /* a dark socket occasionally flickers — trying to come online */
+      if (now > flickerAt) {
+        var fi = 1 + ((Math.random() * (SOCKETS - 1)) | 0);
+        if (!sockets[fi].lit) sockets[fi].flash = 1;   /* lit seats don't flicker */
+        flickerAt = now + 3500 + Math.random() * 6000;
+      }
+    }
+
+    var tilt = TILT + wobble;
+    var cosS = Math.cos(spin), sinS = Math.sin(spin);
+    var cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+    var ZM = RMAJ * (1 + TUBE);
+
+    ectx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ectx.clearRect(0, 0, W, H);
+    ectx.globalCompositeOperation = 'lighter';
+    ectx.lineCap = 'round';
+
+    /* vessel guides — the hull. Kept clearly visible (owner call,
+       2026-07-14b — the full FARRED sink had buried it): the depth
+       ramp holds 25% warm red even far-side, alpha floor/gain up,
+       stroke a touch wider so the bloom catches it. */
+    var g, k, depth;
+    ectx.lineWidth = 0.65;
+    for (g = 0; g < 14; g++) {
+      var gt = (g / 14) * TAU, zsum = 0;
+      ectx.beginPath();
+      for (k = 0; k <= 20; k++) {
+        var gp = (k / 20) * TAU;
+        var rr = 1 + TUBE * Math.cos(gp);
+        project(rr * Math.cos(gt), rr * Math.sin(gt), TUBE * Math.sin(gp), cosS, sinS, cosT, sinT);
+        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
+        zsum += out.z;
+      }
+      depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
+      ectx.strokeStyle = col(mix(FARRED, RED, 0.25 + 0.75 * depth), 0.14 + 0.28 * Math.pow(depth, 1.6));
+      ectx.stroke();
+    }
+
+    /* the coil: ember at rest, ignited behind the survey packet */
+    var SAMPLES = 800, RUN = 4;
+    for (k = 0; k < SAMPLES; k += RUN) {
+      var midT = ((k + RUN / 2) / SAMPLES) % 1;
+      /* distance behind the packet, wrapped */
+      var behind = pkt - midT; if (behind < 0) behind += 1;
+      var heat = REDUCED ? 0 : Math.max(0, 1 - behind / 0.14);
+      ectx.beginPath();
+      var zs = 0;
+      for (var s2 = 0; s2 <= RUN; s2++) {
+        /* no wrap: WINDINGS is non-integer, so t=1 !== t=0 — a modulo
+           here draws a seam chord across the whole shape */
+        helix(Math.min(1, (k + s2) / SAMPLES), cosS, sinS, cosT, sinT);
+        if (s2 === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
+        zs += out.z;
+      }
+      depth = Math.max(0, (ZM - zs / (RUN + 1)) / (2 * ZM));
+      var da = 0.14 + 0.86 * Math.pow(depth, 1.6);
+      /* far side sinks toward deep desaturated red — atmosphere, not
+         just fade (the fiber-optic white→warm falloff, reversed) */
+      var emberC = mix(FARRED, RED, Math.min(1, depth * 1.35));
+      var cc = heat > 0.01 ? mix(emberC, cycleCur, heat) : emberC;
+      var a1 = da * (0.17 + heat * 0.5);
+      var a2 = da * (0.46 + heat * 0.6);
+      ectx.strokeStyle = col(cc, a1);
+      ectx.lineWidth = (1.6 + heat * 1.6) * out.scale;
+      ectx.stroke();
+      ectx.strokeStyle = col(heat > 0.5 ? mix(cc, WHITE, (heat - 0.5) * 0.8) : cc, a2);
+      ectx.lineWidth = (0.55 + heat * 0.45) * out.scale;
+      ectx.stroke();
+    }
+
+    /* the packet head — a continuous stroke along the same helix as
+       the coil, long enough to bridge the trail's segment grid, so
+       head and trail read as one unbroken filament */
+    if (!REDUCED) {
+      var HEAD = 12, SPAN = 0.016;
+      ectx.beginPath();
+      for (k = 0; k <= HEAD; k++) {
+        var tt = pkt - (k / HEAD) * SPAN; if (tt < 0) tt += 1;
+        helix(tt, cosS, sinS, cosT, sinT);
+        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
+      }
+      ectx.strokeStyle = col(cycleCur, 0.45);
+      ectx.lineWidth = 3.2 * out.scale;
+      ectx.stroke();
+      ectx.strokeStyle = col(mix(cycleCur, WHITE, 0.75), 0.95);
+      ectx.lineWidth = 1.1 * out.scale;
+      ectx.stroke();
+      /* hot tip, sitting exactly on the filament's end */
+      helix(pkt, cosS, sinS, cosT, sinT);
+      ectx.fillStyle = col(mix(cycleCur, WHITE, 0.85), 0.95);
+      ectx.beginPath();
+      ectx.arc(out.sx, out.sy, 1.8 * out.scale, 0, TAU);
+      ectx.fill();
+      headX = out.sx; headY = out.sy;      /* light source for the dust */
+    }
+
+    /* sockets: dark seats, the odd hopeful flicker; merged members
+       burn in their discipline color (lit by the registry data
+       island), node 000 white at the origin */
+    for (k = 0; k < SOCKETS; k++) {
+      var so = sockets[k];
+      so.flash *= Math.pow(0.05, dt);
+      var ring2 = 1 + TUBE * Math.cos(so.phi);
+      project(ring2 * Math.cos(so.theta), ring2 * Math.sin(so.theta), TUBE * Math.sin(so.phi), cosS, sinS, cosT, sinT);
+      depth = Math.max(0.05, (ZM - out.z) / (2 * ZM));
+      if (so.lit) {
+        var pulse = 0.85 + 0.15 * Math.sin(now * 0.002 + so.tw);
+        var gr = (so.lit.white ? 26 : 17) * out.scale * pulse;
+        ectx.globalAlpha = 0.9 * depth + 0.1;
+        ectx.drawImage(so.lit.sprite, out.sx - gr, out.sy - gr, gr * 2, gr * 2);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = so.lit.white ? col(WHITE, 0.95) : col(mix(so.lit.c, WHITE, 0.55), 0.95);
+        ectx.beginPath();
+        ectx.arc(out.sx, out.sy, (so.lit.white ? 1.7 : 1.4) * out.scale, 0, TAU);
+        ectx.fill();
+        if (so.lit.white) { orgX = out.sx; orgY = out.sy; }  /* second light source */
+      } else {
+        var fa = (0.15 + 0.07 * Math.sin(now * 0.0012 + so.tw) + so.flash * 0.85) * depth;
+        if (fa > 0.02) {
+          ectx.fillStyle = col(so.flash > 0.2 ? mix(RED, WHITE, so.flash * 0.6) : RED, fa);
+          ectx.beginPath();
+          ectx.arc(out.sx, out.sy, (0.9 + so.flash * 1.2) * out.scale, 0, TAU);
+          ectx.fill();
+        }
+      }
+    }
+
+    /* dust — reacts to the two live light sources (packet head + origin):
+       squared-distance falloff, no sqrt. Lit motes flare, scale, and
+       tint toward the light; dim motes batch into three Path2D alpha
+       buckets so the whole field costs a handful of fill calls. */
+    var buckets = [null, null, null];
+    var BUCKET_A = [0.022, 0.045, 0.075];
+    var pr2 = (RMAJ * 0.32) * (RMAJ * 0.32);
+    var or2 = pr2 * 0.35;
+    for (k = 0; k < motes.length; k += Q.moteStride) {
+      var mo = motes[k];
+      if (!REDUCED) { mo.theta += 0.00005; mo.tw += mo.tws * dt; }
+      var r3 = 1 + TUBE * Math.cos(mo.phi);
+      project(r3 * Math.cos(mo.theta) + mo.ox, r3 * Math.sin(mo.theta) + mo.oy,
+              TUBE * Math.sin(mo.phi) + mo.oz, cosS, sinS, cosT, sinT);
+      depth = Math.max(0, (ZM - out.z) / (2 * ZM));
+      /* fake bokeh — circle of confusion by depth. Points of light
+         off the focal plane (the near rim, where the eye lives)
+         spread into bigger, dimmer discs; the bloom rounds their
+         edge. Costs a couple of muls per mote, no extra buffers.
+         ONLY the dust defocuses — the subject stays tack sharp. */
+      var coc = BOKEH * Math.min(1, Math.abs(out.z + RMAJ * 0.65) / (RMAJ * 1.6));
+      var bk = 1 + 1.8 * coc;
+      var tw2 = 0.5 + 0.5 * Math.sin(mo.tw);
+      var ma = (0.03 + 0.05 * tw2) * depth / (bk * Math.sqrt(bk));
+      var boost = 0;
+      if (!REDUCED) {
+        var dx = out.sx - headX, dy = out.sy - headY;
+        boost = 0.6 / (1 + (dx * dx + dy * dy) / pr2);
+        dx = out.sx - orgX; dy = out.sy - orgY;
+        boost += 0.35 / (1 + (dx * dx + dy * dy) / or2);
+      }
+      if (boost > 0.04) {
+        ma += boost * (0.5 + 0.5 * tw2);
+        ectx.fillStyle = col(mix(DUST, cycleCur, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
+        ectx.beginPath();
+        ectx.arc(out.sx, out.sy, (0.45 + boost * 1.0) * out.scale * bk, 0, TAU);
+        ectx.fill();
+      } else if (ma >= 0.012) {
+        var bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
+        if (!buckets[bi]) buckets[bi] = new Path2D();
+        var mr = 0.5 * out.scale * bk;
+        buckets[bi].moveTo(out.sx + mr, out.sy);
+        buckets[bi].arc(out.sx, out.sy, mr, 0, TAU);
+      }
+    }
+    for (k = 0; k < 3; k++) {
+      if (buckets[k]) {
+        ectx.fillStyle = col(DUST, BUCKET_A[k]);
+        ectx.fill(buckets[k]);
+      }
+    }
+    ectx.globalCompositeOperation = 'source-over';
+
+    /* composite: pure black ground + emissive + bloom */
+    mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    mctx.fillStyle = '#000';                 /* opaque black: 'overlay'
+                                                dither stays neutral here */
+    mctx.fillRect(0, 0, W, H);
+
+    mctx.globalCompositeOperation = 'lighter';
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.drawImage(em, 0, 0);
+
+    /* ping-pong bloom: successive half-step downscales; hardware
+       bilinear filtering IS the blur (each halving is a proper 2×2
+       box average — never skip levels or it undersamples and
+       shimmers). No ctx.filter anywhere: identical output on
+       Chromium, WebKit, and Gecko. */
+    var src = em;
+    var levels = Q.wideBloom ? mips.length : mips.length - 1;
+    for (k = 0; k < levels; k++) {
+      mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
+      mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
+      src = mips[k].c;
+    }
+
+    /* the floor — the room catches the packet's light. Painted into
+       the 1/4 mip AFTER the chain is built (so it never compounds
+       into the deeper mips) and BEFORE the dither (so the noise
+       grains it too): 1/16 the pixels of a full-res fill, and the
+       bilinear upscale keeps the falloff liquid. Unlit ground stays
+       absolute #000 — this is light landing on the floor, not a
+       background wash. Alphas are 2x the retired full-res floor
+       because mip 0 composites at 0.5. */
+    var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
+    var fg = fx.createRadialGradient(fw / 2, fh * 1.18, 0, fw / 2, fh * 1.18, fh * 0.85);
+    fg.addColorStop(0, col(floorCur, 0.32));
+    fg.addColorStop(0.5, col(floorCur, 0.08));
+    fg.addColorStop(1, col(floorCur, 0));
+    fx.globalCompositeOperation = 'lighter';
+    fx.fillStyle = fg;
+    fx.fillRect(0, fh * 0.28, fw, fh * 0.72);
+    fx.globalCompositeOperation = 'source-over';
+
+    /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of a
+       full-res pass): the bloom halos are where 8-bit banding lives,
+       'overlay' gray noise is neutral on black, and the bilinear
+       upscale melts the jitter into film-grain-scale texture. */
+    var dx1 = mips[0].x;
+    var mw = mips[0].c.width, mh = mips[0].c.height;
+    var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
+    /* source-atop clips the noise to pixels that GLOW — 'overlay'
+       bleeds onto the transparent regions and grays the pure black */
+    dx1.globalCompositeOperation = 'source-atop';
+    dx1.globalAlpha = 0.12;
+    dx1.drawImage(noise,
+      (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
+      sw, sh, 0, 0, mw, mh);
+    dx1.globalAlpha = 1;
+    dx1.globalCompositeOperation = 'source-over';
+
+    mctx.globalAlpha = 0.5;
+    mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
+    mctx.globalAlpha = 0.62;
+    mctx.drawImage(mips[2].c, 0, 0, canvas.width, canvas.height);   /* 1/16 — soft scatter */
+    if (Q.wideBloom) {
+      mctx.globalAlpha = 0.5;
+      mctx.drawImage(mips[3].c, 0, 0, canvas.width, canvas.height); /* 1/32 — room glow */
+    }
+
+    mctx.globalAlpha = 1;
+    mctx.globalCompositeOperation = 'source-over';
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (REDUCED) return;
+    if (document.hidden) running = false;
+    else if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(frame); }
+  });
+
+  /* ---- the data island -----------------------------------------
+     Git is the database: the registry (nodes/*.json) compiles to
+     manifest.json in CI, and the page fetches it to light the
+     merged sockets + drive the NODES count. Offline / file:// the
+     fetch fails and the inline seed keeps the pre-launch look —
+     the page never depends on the network to render. */
+  var DISC_NAMES = ['Photography', 'Digital Art', 'Writing', 'Code',
+                    'Music', 'Design', 'Architecture'];
+  var litSprites = { origin: originGlow };
+  function applyRegistry(list) {
+    var i, count = 0;
+    for (i = 0; i < SOCKETS; i++) sockets[i].lit = null;
+    for (i = 0; i < list.length; i++) {
+      var n = list[i];
+      if (!n || typeof n.node !== 'number' || n.status !== 'online') continue;
+      count++;
+      var so = sockets[((n.node % SOCKETS) + SOCKETS) % SOCKETS];
+      var di = DISC_NAMES.indexOf(n.disciplines && n.disciplines[0]);
+      var c = di >= 0 ? CATS[di] : RED;
+      var key = n.node === 0 ? 'origin' : String(di);
+      if (!litSprites[key]) litSprites[key] = glowSprite(mix(c, WHITE, 0.15));
+      so.lit = { c: c, sprite: litSprites[key], white: n.node === 0 };
+    }
+    var cnt = document.getElementById('node-count');
+    if (cnt) cnt.textContent = String(count).padStart(3, '0');
+    if (REDUCED) frame(performance.now());   /* re-render the still */
+  }
+  /* inline seed — node 000 always burns, even with no network */
+  applyRegistry([{ node: 0, disciplines: ['Photography'], status: 'online' }]);
+  try {
+    fetch('manifest.json').then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) { if (m && m.nodes && m.nodes.length) applyRegistry(m.nodes); })
+      .catch(function () {});
+  } catch (e) {}
+
+  requestAnimationFrame(frame);
+})();
+</script>
 
 </body>
 </html>

@@ -1,0 +1,21 @@
+{
+  "network": "analogs.network",
+  "generated": "2026-07-15T03:23:17Z",
+  "count": 1,
+  "online": 1,
+  "nodes": [
+    {
+      "node": 0,
+      "slug": "oaklens-art",
+      "name": "OAKLENS.ART",
+      "url": "https://oaklens.art",
+      "disciplines": [
+        "Photography"
+      ],
+      "est": "2026-07-14",
+      "status": "online",
+      "founding": true,
+      "button": "https://analogs.network/assets/buttons/oaklens-art.svg"
+    }
+  ]
+}

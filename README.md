@@ -1,35 +1,28 @@
-# ANALOGS.NETWORK — pre-init placeholder
+# ANALOGS.NETWORK
 
-> Staged in `docs/` (assetsignored — never served on oaklens.art). These files
-> are the seed of the future **`oaklensart/analogs-network`** repo. Copy them to
-> that repo's root and deploy; nothing here depends on this codebase.
+> **SYS // PRE-INIT**
 
-A global network of creatives who run their own corner of the web — a 2026
-webring. This placeholder holds the domain while the node schema, PR intake,
-and terminal map UI are built.
+A global network of creatives who run their own corner of the web — a modern webring.
 
-## Contents
+This repository will serve as the open-source node registry and core infrastructure for the network. We are currently in the pre-initialization phase, building out the node schema, PR intake pipeline, and the terminal map UI.
 
-| File | Purpose |
-|------|---------|
-| `index.html` | The whole site: one page, zero JS, zero dependencies, no build step. OLED black / signal red / paper white. CSS-only rotating wireframe globe, orbiting OAKLENS.ART callsign, `AWAITING NODES` message linking to os.oaklens.art. Mobile-safe (safe-area insets, `prefers-reduced-motion` honored). |
-| `favicon.svg` | Node motif — red beacon in a wire ring on black. |
-| `_headers` | Cloudflare Pages security headers. CSP locks everything except inline styles and self-served images — there is no script surface at all. |
+## Audio Attribution
 
-## Day-one deploy (once the domain is registered)
+Ambient loop: ["Ominous and Deep Ambience"](https://freesound.org/s/467026/) by Resaural — Creative Commons 0 (no attribution required; credited anyway). Transcoded to Ogg/Opus and AAC for web delivery.
 
-1. Register `analogs.network` (Porkbun, WHOIS privacy on; note the renewal price, not just year one).
-2. Add the domain to Cloudflare (Free plan) → point Porkbun's nameservers at the two Cloudflare gives you.
-3. Create `oaklensart/analogs-network` (public), push these files to its root.
-4. Cloudflare Pages → connect the repo → no build command, output directory `/` → deploy.
-5. Pages project → Custom domains → add `analogs.network` (and `www.analogs.network`, which Pages redirects to the apex).
-6. Optional hygiene: Cloudflare Email Routing for a `hello@` forward, plus null SPF (`v=spf1 -all`) and a `p=reject` DMARC record since the domain sends no mail.
+## Live Status
 
-## Later (not day one)
+The domain is active at [analogs.network](https://analogs.network/) with a static placeholder while core systems are brought online. 
 
-- `nodes/*.json` — one file per member (single-array manifests conflict on every PR).
-- JSON-schema CI validation on PRs; merge = accepted.
-- GitHub issue-form intake for non-git creatives → Action converts to a PR.
-- Merge Action compiles `nodes/*.json` → `network.json`; the map page fetches it.
-- The full terminal map UI (discipline filters, coarse-region dots).
-- Only after it's live and crawlable: consider the oaklens.art entity-graph link (`sameAs` discipline — manual §2.3).
+## Roadmap
+
+- **Node Manifests**: Open PRs for creatives to register their nodes (`nodes/*.json`).
+- **Validation CI**: Automated JSON-schema validation for node intake.
+- **The Ring**: the live network interface — discipline filters, search, and drift.
+- **Accessible Intake**: GitHub issue forms to automate node PRs for non-developers.
+
+## Join the Network
+
+We are currently **AWAITING NODES**. 
+
+If you are a creative running your own independent corner of the web and want to be part of the inaugural network, star or watch this repository. PR intake will open once the core schema is finalized.
