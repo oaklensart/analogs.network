@@ -11,6 +11,7 @@ on:
     paths:
       - 'nodes/**'
       - 'scripts/build-manifest.mjs'
+      - 'scripts/build-opml.mjs'
   workflow_dispatch:
 
 permissions:
@@ -27,15 +28,16 @@ jobs:
           node-version: 22
       - run: node scripts/validate-nodes.mjs
       - run: node scripts/build-manifest.mjs
+      - run: node scripts/build-opml.mjs
       - name: commit compiled data
         run: |
-          if git diff --quiet manifest.json status.json; then
+          if git diff --quiet manifest.json status.json analogs.opml; then
             echo "manifest unchanged — nothing to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json status.json
+          git add manifest.json status.json analogs.opml
           COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('manifest.json','utf8')).count)")
           git commit -m "data: compile manifest — ${COUNT} node(s) [skip-manifest]"
           git push

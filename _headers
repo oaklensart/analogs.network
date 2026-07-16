@@ -11,3 +11,8 @@
 
 /status.json
   Cache-Control: public, max-age=300, must-revalidate
+
+# the ring in your feed reader — recompiled at every merge
+/analogs.opml
+  Cache-Control: public, max-age=300, must-revalidate
+  Content-Type: text/x-opml; charset=utf-8

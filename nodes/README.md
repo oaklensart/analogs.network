@@ -26,7 +26,7 @@ One pull request. That's the whole bar.
    | `est` | `YYYY-MM-DD` you joined (cards display `YYYY.MM`; `DAY n` counts from it). |
    | `status` | `online`. (`dark` is maintainer-set — see below.) |
    | `button` | *(optional)* your 88x31 button, for other nodes to display. |
-   | `feed` | *(optional)* RSS/Atom — reserved for a future fresh-signal indicator. |
+   | `feed` | *(optional)* RSS/Atom. Goes into `/analogs.opml` — one import subscribes a reader to the whole ring — and will power the fresh-signal indicator. Worth adding. |
 
 4. Open the PR. CI validates the manifest; a maintainer merges; your
    socket lights up.
@@ -35,6 +35,35 @@ No server requirements, no code to install, no uptime contract. If you
 want to return the handshake, display the ring's 88x31 button
 (`https://analogs.network/assets/buttons/analogs-network.svg`) linking
 back to `https://analogs.network` — appreciated, not required.
+
+## Verification (optional — but here's why you'd want it)
+
+Joining never requires it: a maintainer verifies your PR by hand and
+merges. If you want the extra layer, serve one plain-text file at:
+
+```
+https://your-site/.well-known/analogs.txt
+```
+
+containing a single line with your seat on the ring:
+
+```
+analogs.network//node-007//your-slug
+```
+
+What the token buys you:
+
+- **Self-service.** Proving control of the domain IS proving you're the
+  member — future listing changes and removal work without email
+  round-trips, no accounts, no stored contact info.
+- **Squat protection.** Domains lapse. If yours ever expires and a
+  stranger picks it up, the missing token lets the sweep dim your
+  listing automatically — the ring stops vouching for whoever bought
+  your old address, and your number stays yours (numbers are permanent
+  either way).
+
+The token contains nothing secret — it's a claim, not a key. Remove it
+any time; removal simply returns you to manual-verification handling.
 
 ## Permanence
 
