@@ -1282,8 +1282,22 @@ function resize() {
   } catch (e) {}
   const availW = Math.max(140, W - sideL - sideR);
   const availH = Math.max(140, H - top - bot - pad * 2);
-  RMAJ  = fitTorus(availW, availH);
+  /* the instrument is an OBJECT in a room, not a fills-every-pixel
+     screensaver: past a comfortable size it STOPS growing and takes
+     margin instead. Without this cap the fit blows the ring up to fill
+     any viewport — and because the legend/panel reserves are fixed
+     pixels, a big display fills an even larger FRACTION (a Retina laptop
+     at its "more space" scaling, ~2560 CSS px, rendered the ring ~2×
+     its intended size — owner report 2026-07-19). RINGMAX is in CSS px
+     so it tracks the layout, never the device buffer; small viewports
+     never reach it and fill exactly as before. The ring is wider than
+     tall, so width binds first — capping both dims to the same value
+     lets the natural aspect pick the limiter. */
+  const RINGMAX = 1200;
+  RMAJ  = fitTorus(Math.min(availW, RINGMAX), Math.min(availH, RINGMAX));
   RTUBE = RMAJ * 0.30;
+  /* center the (possibly capped) ring in the FULL free space, so a
+     large screen gets symmetric breathing room around the object */
   CX = (sideL + (W - sideR)) / 2 - (_sil[0] + _sil[1]) / 2;
   CY = top + pad + availH / 2 - (_sil[2] + _sil[3]) / 2;
   /* LEAN: the floor pool anchors under the ring's bottom rim. The
@@ -3107,6 +3121,14 @@ if (PREVIEW) applyPreview();
 /* a pasted #/slug deep link lands focused (mock data is seeded, so
    demo links survive reloads; live data is stable by nature) */
 if (location.hash.length > 2 && !PREVIEW) applyHash();
+
+/* re-fit now that the whole UI exists. The first resize() ran before
+   the legend rail's buttons were built, so its width wasn't reserved
+   yet — without this the FIRST painted frame sizes/centers the ring
+   against a too-narrow legend (a hair too large, nudged off-center)
+   until the next resize. One more fit against the real DOM makes the
+   first frame the correct frame. */
+resize();
 
 requestAnimationFrame(render);
 
