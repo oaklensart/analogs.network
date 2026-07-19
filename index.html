@@ -1633,11 +1633,22 @@ const pulses = [];
 function spawnPulse(conn, fromA, white, speed) {
   pulses.push({ conn, fromA, white, t: 0, speed: speed || (0.9 + Math.random() * 0.8) });
 }
+/* a chain packet holds a CONSTANT spatial pace — one full lap ≈
+   CHAIN_LAP seconds — no matter how far apart its two members sit.
+   `speed` drives t 0→1 across a single segment, so it must scale by the
+   segment's seat span (`gap`): without this a packet crossed a 147-seat
+   span and a 3-seat span in the same ~0.28s and whipped around a young
+   ring (near-empty rings have enormous gaps between members). It settles
+   on its own as members arrive and the gaps shrink. */
+const CHAIN_LAP = 26;                                   /* seconds / lap */
+const chainSpeed = conn => NUM_NODES / (conn.gap * CHAIN_LAP);
 /* two packets forever circulating the chain — the ring carries
    current (none until the chain exists, i.e. two members) */
 if (!REDUCED && chain.length)
-  for (const h of [0, Math.floor(chain.length / 2)])
-    spawnPulse(chain[h % chain.length], true, true, 3.6);
+  for (const h of [0, Math.floor(chain.length / 2)]) {
+    const c = chain[h % chain.length];
+    spawnPulse(c, true, true, chainSpeed(c));
+  }
 
 /* ── UI refs ─────────────────────────────────────────────── */
 const nodeCountEl = document.getElementById('node-count');
@@ -2644,9 +2655,10 @@ function render(now) {
         arriveNode.flash = Math.min(1, arriveNode.flash + 0.9);
         arriveNode.springScale = Math.max(arriveNode.springScale, 1.45);
         if (p.white && p.conn.chain) {
-          /* ring packets hand off to the next chain segment */
+          /* ring packets hand off to the next chain segment, keeping the
+             constant spatial pace across a differently-sized span */
           const nx = chainByA.get(arriveNode.id);
-          if (nx) spawnPulse(nx, true, true, 3.6);
+          if (nx) spawnPulse(nx, true, true, chainSpeed(nx));
         }
         pulses.splice(i, 1);
       }
