@@ -1,0 +1,13 @@
+{
+  "node": 3,
+  "slug": "valerie-flynn",
+  "name": "Valerie Flynn",
+  "url": "https://valerieflynn.com",
+  "disciplines": ["Writing"],
+  "est": "2026-07-19",
+  "status": "online",
+  "founding": true,
+  "links": [
+    { "label": "Writers of Meaning", "url": "https://writersofmeaning.com" }
+  ]
+}

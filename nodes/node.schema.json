@@ -52,6 +52,20 @@
       "type": "boolean",
       "description": "First cohort. White-hot core on the ring. Set by maintainers."
     },
+    "links": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "Optional extra links shown IN the node's card — a creative's other projects/sites. One light per creative: the primary `url` stays the node's identity (sets the ring color and the callsign); these are secondary references. Capped at 4 so cards stay legible.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "url"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 32, "description": "Short display label." },
+          "url": { "type": "string", "pattern": "^https://", "description": "HTTPS only." }
+        }
+      }
+    },
     "button": {
       "type": "string",
       "pattern": "^https://",

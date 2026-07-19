@@ -281,6 +281,32 @@ a.btn { text-decoration: none; display: inline-block; }
   text-transform: uppercase;
   white-space: nowrap;
 }
+/* also-links: one light per creative, but a card can hold a few more
+   of a member's own corners (built from node.links, textContent only) */
+.node-info .links {
+  display: flex;
+  gap: 7px 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  margin-top: 12px;
+}
+.node-info .links:empty { display: none; margin-top: 0; }
+.node-info .links a {
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: rgba(224,224,224,0.55);
+  border-bottom: 1px solid rgba(255,255,255,0.14);
+  padding-bottom: 1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+.node-info .links a::before { content: "// "; color: rgba(255,0,0,0.5); }
+.node-info .links a:hover, .node-info .links a:focus-visible {
+  color: #fff; border-bottom-color: currentColor;
+}
 
 .controls { display: flex; gap: 9px; pointer-events: auto; flex-wrap: wrap; justify-content: center; }
 .btn {
@@ -817,6 +843,7 @@ body.no-engine .fallback { display: flex; }
     <a class="addr" id="ni-addr" href="https://analogs.network" target="_blank" rel="noopener">analogs.network</a>
     <div class="meta" id="ni-meta">N#000</div>
     <div class="badges" id="ni-badges"></div>
+    <div class="links" id="ni-links"></div>
     <div class="card-actions">
       <a class="btn" id="ni-open" href="https://analogs.network" target="_blank" rel="noopener">OPEN SITE &rarr;</a>
       <button class="btn" id="ni-share" title="Share this node's address">SHARE</button>
@@ -1436,6 +1463,7 @@ for (let i = 0; i < NUM_NODES; i++) {
       name: rn.name, slug: rn.slug, medium,
       color: CATS[medium],
       domain, url: rn.url,
+      links: Array.isArray(rn.links) ? rn.links : null,   /* extra card links */
       signalDays: null,                      /* arrives with the future sweep */
       founding: !!rn.founding,
       daysOn: Math.max(1, Math.floor((NOW - (Date.parse(rn.est) || NOW)) / 86400000)),
@@ -1619,6 +1647,7 @@ const infoGlyph = document.getElementById('ni-glyph');
 const infoAddr  = document.getElementById('ni-addr');
 const infoMeta  = document.getElementById('ni-meta');
 const infoBadges = document.getElementById('ni-badges');
+const infoLinks = document.getElementById('ni-links');
 const infoOpen  = document.getElementById('ni-open');
 const infoActions = document.querySelector('.card-actions');
 const shareBtn  = document.getElementById('ni-share');
@@ -1751,6 +1780,23 @@ function focusNode(node) {
   mkBadge(`DAY ${node.daysOn}`);
   if (node.uptime !== null) mkBadge(`UPTIME ${node.uptime}%`);
   if (node.founding) mkBadge('FOUNDING', { borderColor: '#fff', color: '#fff' });
+
+  /* also-links — a member's other corners, built textContent-only from
+     the registry (untrusted strings); only https hrefs are honored, and
+     the primary url is never repeated here */
+  infoLinks.textContent = '';
+  if (Array.isArray(node.links)) {
+    for (const l of node.links) {
+      if (!l || typeof l.url !== 'string' || !/^https:\/\//i.test(l.url) || l.url === node.url) continue;
+      const a = document.createElement('a');
+      a.textContent = l.label || l.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      a.href = l.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      infoLinks.appendChild(a);
+    }
+  }
+
   infoPanel.classList.add('active');
   idleEl.classList.add('hide');       /* the card takes the slot back */
   shareBtn.textContent = 'SHARE';

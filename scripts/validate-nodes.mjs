@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const NODES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'nodes');
 const DISCIPLINES = ['Photography', 'Digital Art', 'Writing', 'Code', 'Music', 'Design', 'Architecture'];
 const REQUIRED = ['node', 'slug', 'name', 'url', 'disciplines', 'est', 'status'];
-const OPTIONAL = ['founding', 'button', 'feed'];
+const OPTIONAL = ['founding', 'button', 'feed', 'links'];
 
 const files = readdirSync(NODES_DIR).filter(f => /^\d{3}-.+\.json$/.test(f)).sort();
 const errors = [];
@@ -64,6 +64,16 @@ for (const file of files) {
   if ('status' in n && !['online', 'dark'].includes(n.status)) err(file, `"status" must be "online" or "dark"`);
   if ('founding' in n && typeof n.founding !== 'boolean') err(file, `"founding" must be a boolean`);
   for (const k of ['button', 'feed']) if (k in n && !httpsUrl(n[k])) err(file, `"${k}" must be a valid https:// URL`);
+  if ('links' in n) {
+    const L = n.links;
+    if (!Array.isArray(L) || L.length > 4) err(file, `"links" must be an array of at most 4 entries`);
+    else L.forEach((x, i) => {
+      if (!x || typeof x !== 'object' || Array.isArray(x)) return err(file, `"links[${i}]" must be an object {label, url}`);
+      for (const k of Object.keys(x)) if (k !== 'label' && k !== 'url') err(file, `"links[${i}]" unknown field "${k}"`);
+      if (!(typeof x.label === 'string' && x.label.length >= 1 && x.label.length <= 32)) err(file, `"links[${i}].label" must be a string, 1-32 chars`);
+      if (!httpsUrl(x.url)) err(file, `"links[${i}].url" must be a valid https:// URL`);
+    });
+  }
 
   /* filename <-> manifest agreement */
   const m = file.match(/^(\d{3})-(.+)\.json$/);

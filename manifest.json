@@ -1,8 +1,8 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-19T18:43:17Z",
-  "count": 1,
-  "online": 1,
+  "generated": "2026-07-19T19:10:28Z",
+  "count": 2,
+  "online": 2,
   "nodes": [
     {
       "node": 0,
@@ -16,6 +16,24 @@
       "status": "online",
       "founding": true,
       "button": "https://analogs.network/assets/buttons/oaklens-art.svg"
+    },
+    {
+      "node": 3,
+      "slug": "valerie-flynn",
+      "name": "Valerie Flynn",
+      "url": "https://valerieflynn.com",
+      "disciplines": [
+        "Writing"
+      ],
+      "est": "2026-07-19",
+      "status": "online",
+      "founding": true,
+      "links": [
+        {
+          "label": "Writers of Meaning",
+          "url": "https://writersofmeaning.com"
+        }
+      ]
     }
   ]
 }

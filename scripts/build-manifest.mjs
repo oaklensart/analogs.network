@@ -59,6 +59,8 @@ const row = n => {
   if (n.founding) r.founding = true;
   if (n.button) r.button = n.button;
   if (n.feed) r.feed = n.feed;
+  if (Array.isArray(n.links) && n.links.length)
+    r.links = n.links.map(l => ({ label: l.label, url: l.url }));
   return r;
 };
 

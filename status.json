@@ -1,9 +1,12 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-19T18:43:17Z",
+  "generated": "2026-07-19T19:10:28Z",
   "swept": null,
   "nodes": {
     "oaklens-art": {
+      "state": "online"
+    },
+    "valerie-flynn": {
       "state": "online"
     }
   },
