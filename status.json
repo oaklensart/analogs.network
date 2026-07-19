@@ -1,6 +1,6 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-19T20:09:29Z",
+  "generated": "2026-07-19T21:16:12Z",
   "swept": null,
   "nodes": {
     "oaklens-art": {
@@ -10,6 +10,9 @@
       "state": "online"
     },
     "maja-braumberger": {
+      "state": "online"
+    },
+    "cybersoda": {
       "state": "online"
     }
   },

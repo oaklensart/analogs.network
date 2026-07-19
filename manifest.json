@@ -1,8 +1,8 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-19T20:09:29Z",
-  "count": 3,
-  "online": 3,
+  "generated": "2026-07-19T21:16:12Z",
+  "count": 4,
+  "online": 4,
   "nodes": [
     {
       "node": 0,
@@ -42,6 +42,18 @@
       "url": "https://majabraumberger.com",
       "disciplines": [
         "Digital Art"
+      ],
+      "est": "2026-07-19",
+      "status": "online",
+      "founding": true
+    },
+    {
+      "node": 5,
+      "slug": "cybersoda",
+      "name": "shoggi / cybersoda",
+      "url": "https://www.cybersoda.blog",
+      "disciplines": [
+        "Code"
       ],
       "est": "2026-07-19",
       "status": "online",
