@@ -1035,15 +1035,27 @@ const NUM_NODES = 150;
 const FOUNDING = 12;             /* first cohort — white-hot cores */
 const WINDINGS = 9.7;            /* chain revolutions around the tube */
 const PERSPECTIVE = 1700;
-const TILT = 0.84;               /* 0.78 → 0.84 (2026-07-15): more edge-on
-                                    shows the far rim through the crown */
+const TILT = 1.06;               /* 0.78 → 0.84 (2026-07-15) → 1.06 (2026-07-19,
+                                    owner call): ~61°, more edge-on so the disk
+                                    lays flatter and the far rim wraps up over
+                                    the crown — the "black-hole disk coming out
+                                    of the screen" read. Paired with the tilt
+                                    LOCK (WOBBLE_A = 0): a fixed object, not a
+                                    screensaver. Fit is solved (§3.4b), so the
+                                    steeper angle can't clip the crown. */
 const TUBE_RATIO = 0.30;
 /* static screen-space roll — a touch off-axis so the instrument
    reads as an OBJECT placed in the room, not a screensaver motif.
    Static by design: no parallax, ever. */
 const ROLL = -0.09;
 const COSR = Math.cos(ROLL), SINR = Math.sin(ROLL);
-const WOBBLE_A = 0.1;            /* wobble amplitude (fit accounts for it) */
+const WOBBLE_A = 0;             /* tilt LOCKED (2026-07-19, owner call): 0 = no
+                                   breathing. The ring is a fixed object you look
+                                   at through the screen — only spin-drift and the
+                                   user's own drag move it, so a thumb-spin matches
+                                   what the eye sees. Set >0 (was 0.1 ≈ ±5.7° on a
+                                   ~105s sine) to bring the breathing back; the
+                                   viewport fit reads this same knob. */
 const BOKEH = 1;                 /* 0 disables the dust depth-of-field */
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -2505,7 +2517,7 @@ function render(now) {
   let ds = targetSpin - spin;
   ds = ((ds + Math.PI) % TAU + TAU) % TAU - Math.PI;
   spin += ds * 0.05;
-  wobble = REDUCED ? 0 : Math.sin(now * 0.00006) * 0.1;
+  wobble = REDUCED ? 0 : Math.sin(now * 0.00006) * WOBBLE_A;
 
   const tilt = TILT + wobble;
   const cosS = Math.cos(spin), sinS = Math.sin(spin);
