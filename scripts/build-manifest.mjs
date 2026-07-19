@@ -73,9 +73,10 @@ const manifest = {
 /* status.json: merge — keep every state the sweep already wrote */
 let prior = {};
 if (existsSync(STATUS)) {
-  try { prior = JSON.parse(readFileSync(STATUS, 'utf8')).nodes || {}; }
+  try { prior = JSON.parse(readFileSync(STATUS, 'utf8')) || {}; }
   catch { prior = {}; }
 }
+const priorNodes = prior.nodes || {};
 const status = {
   network: 'analogs.network',
   generated: manifest.generated,
@@ -84,8 +85,22 @@ const status = {
 };
 for (const n of nodes) {
   if (n.status === 'dark') continue; /* dark is permanent, manifest-side */
-  status.nodes[n.slug] = prior[n.slug] || { state: 'online' };
+  status.nodes[n.slug] = priorNodes[n.slug] || { state: 'online' };
 }
+
+/* reserved — the pre-light holds (admin-owned, written by
+   scripts/reserve.mjs; identity never appears here). Carried through
+   untouched EXCEPT the two structural auto-releases: a hold whose
+   seat a real member has since claimed, and a hold past its expiry.
+   Permanence is for members; a lapsed hold simply goes vacant. */
+const taken = new Set(nodes.map(n => n.node));   /* dark numbers are retired, not holdable */
+const reserved = {};
+for (const [seat, h] of Object.entries(prior.reserved || {})) {
+  if (taken.has(+seat)) continue;
+  if (!h || !h.until || Date.parse(h.until) <= Date.now()) continue;
+  reserved[seat] = h;
+}
+if (Object.keys(reserved).length) status.reserved = reserved;
 
 const mOut = JSON.stringify(manifest, null, 2) + '\n';
 const sOut = JSON.stringify(status, null, 2) + '\n';

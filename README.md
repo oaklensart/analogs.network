@@ -4,7 +4,7 @@
 
 A global network of creatives who run their own corner of the web — a modern webring.
 
-This repository will serve as the open-source node registry and core infrastructure for the network. We are currently in the pre-initialization phase, building out the node schema, PR intake pipeline, and the terminal map UI.
+This repository is the open-source node registry and core infrastructure for the network: `nodes/*.json` is the permanent record, CI validates and compiles it into the `manifest.json` the ring reads, and the site itself is one dependency-free page.
 
 ## Audio Attribution
 
@@ -12,17 +12,18 @@ Ambient loop: ["Ominous and Deep Ambience"](https://freesound.org/s/467026/) by 
 
 ## Live Status
 
-The domain is active at [analogs.network](https://analogs.network/) with a static placeholder while core systems are brought online. 
+**The Ring is live** at [analogs.network](https://analogs.network/) — the full network interface: every seat rendered, members lit in discipline color, search, index, and drift. Merging a node PR lights its socket within minutes.
 
 ## Roadmap
 
-- **Node Manifests**: Open PRs for creatives to register their nodes (`nodes/*.json`).
-- **Validation CI**: Automated JSON-schema validation for node intake.
-- **The Ring**: the live network interface — discipline filters, search, and drift.
+- ~~**Node Manifests**: Open PRs for creatives to register their nodes (`nodes/*.json`).~~ Live.
+- ~~**Validation CI**: Automated JSON-schema validation for node intake.~~ Live.
+- ~~**The Ring**: the live network interface — discipline filters, search, and drift.~~ Live.
 - **Accessible Intake**: GitHub issue forms to automate node PRs for non-developers.
 
 ## Join the Network
 
-We are currently **AWAITING NODES**. 
+The founding hundred seats are open, and joining is free — always. Two doors, same ring:
 
-If you are a creative running your own independent corner of the web and want to be part of the inaugural network, star or watch this repository. PR intake will open once the core schema is finalized.
+- **One email**: send your site's address to `themonitor@analogs.network` with the subject `add me` (the site's ADD YOUR SITE button pre-fills everything).
+- **One PR**: add `nodes/{NNN}-{slug}.json` (see [`nodes/README.md`](nodes/README.md) for the schema and the permanence rules). The PR is the consent record; merge is the moderation gate.

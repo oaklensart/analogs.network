@@ -11,3 +11,7 @@
 
 /status.json
   Cache-Control: public, max-age=300, must-revalidate
+
+/analogs.opml
+  Cache-Control: public, max-age=300, must-revalidate
+  Content-Type: text/x-opml; charset=utf-8

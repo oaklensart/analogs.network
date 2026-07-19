@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ANALOGS.NETWORK &mdash; AWAITING NODES</title>
-<meta name="description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join. Awaiting nodes.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ANALOGS.NETWORK &mdash; A WEBRING FOR THE INDEPENDENT WEB</title>
+<meta name="description" content="A webring for creatives who run their own corner of the web. Every light on the ring is a real, independent site — no ads, no algorithm, no paid placement. Joining is one email.">
 <link rel="canonical" href="https://analogs.network/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ANALOGS.NETWORK">
-<meta property="og:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta property="og:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
+<meta property="og:title" content="ANALOGS.NETWORK — A WEBRING FOR THE INDEPENDENT WEB">
+<meta property="og:description" content="A webring for creatives who run their own corner of the web. Every light on the ring is a real, independent site. Joining is one email.">
 <meta property="og:url" content="https://analogs.network/">
 <meta property="og:image" content="https://analogs.network/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ANALOGS.NETWORK — AWAITING NODES">
-<meta name="twitter:description" content="A webring for creatives who run their own corner of the web. The ring lights up as nodes join.">
+<meta name="twitter:title" content="ANALOGS.NETWORK — A WEBRING FOR THE INDEPENDENT WEB">
+<meta name="twitter:description" content="A webring for creatives who run their own corner of the web. Every light on the ring is a real, independent site. Joining is one email.">
 <meta name="twitter:image" content="https://analogs.network/assets/og.png">
 <script type="application/ld+json">
 {
@@ -37,9 +37,7 @@
       "url": "https://analogs.network/",
       "logo": "https://analogs.network/favicon.svg",
       "sameAs": [
-        "https://oaklens.art",
-        "https://os.oaklens.art",
-        "https://github.com/oaklensart"
+        "https://github.com/oaklensart/analogs.network"
       ]
     }
   ]
@@ -49,11 +47,24 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 /* ============================================================
-   ANALOGS.NETWORK — pre-init placeholder
-   One page. No dependencies. No build step. Minimal inline JS
-   (ambient audio + the ring engine + rare whispers — page degrades
-   to fully static without it).
-   Palette (3): OLED black #000 · signal red #FF0000 · paper #E0E0E0
+   ANALOGS.NETWORK — THE RING (production)
+   A webring rendered as a ring: wireframe torus, join-order
+   chain, fiber-optic light. Vanilla HTML/CSS/JS, zero deps.
+   Rehearsed in the analogs-staging repo; that copy stays the
+   dress-rehearsal mirror (noindex, demo title) — promote from
+   there, never edit the two engines apart.
+
+   Light engine v2 (synced with the live homepage, 2026-07-14):
+   additive emissive buffer + FILTER-FREE mip-chain bloom (pure
+   bilinear ping-pong — no ctx.filter, identical output on
+   Chromium, WebKit, and Gecko), mip-res temporal dither
+   (band-free halos), depth hue-ramp (far side sinks toward
+   deep red — atmosphere, not just fade), reactive dust
+   (squared-distance falloff from the live light sources),
+   frame-time governor (sheds quality in tiers, never chugs),
+   hidden-tab pause. Ground is pure OLED black: the floor is
+   emitted light painted into the 1/4 mip — unlit pixels stay
+   #000. Grain + vignette retired (owner call, 2026-07-14).
    ============================================================ */
 
 :root {
@@ -68,1210 +79,3031 @@
 
 html, body {
   height: 100%;
-  background: var(--black);
+  background: #000;
   overflow: hidden;
-}
-
-body {
   font-family: var(--font-mono);
   color: var(--white);
   -webkit-font-smoothing: antialiased;
+  /* the page is an instrument, not a document — it never zooms.
+     `manipulation` kills double-tap zoom everywhere while leaving
+     overlay lists scrollable; the canvas goes further (see #net).
+     Safari ignores the viewport lock, so the gesture events are
+     also refused in script. */
+  touch-action: manipulation;
 }
 
-[hidden] { display: none !important; }
-
-/* ---- ground: pure OLED black ---------------------------------
-   No vignette, no grain (owner call, 2026-07-14): the ring and its
-   light speak for themselves against absolute black. The floor is
-   back (2026-07-14b) but as EMITTED LIGHT, not a wash — the engine
-   paints it into the 1/4 bloom mip, so unlit ground stays #000 and
-   the dither pass keeps the gradient band-free. */
-
-/* ---- stage ------------------------------------------------ */
-
-.stage {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: calc(20px + env(safe-area-inset-top))
-           calc(20px + env(safe-area-inset-right))
-           calc(20px + env(safe-area-inset-bottom))
-           calc(20px + env(safe-area-inset-left));
-}
-
-/* ---- corner brackets (terminal frame) ---------------------- */
-
+/* ---- corner brackets ---------------------------------------- */
 .frame {
   position: absolute;
   inset: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
          max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   pointer-events: none;
+  z-index: 10;
 }
 .frame i {
   position: absolute;
   width: 22px; height: 22px;
-  border: 0 solid rgba(255,0,0,0.8);
-  filter: drop-shadow(0 0 6px rgba(255,0,0,0.5));
-  animation: corner-breathe 7s ease-in-out infinite;
-}
-.frame i:nth-child(2) { animation-delay: -1.8s; }
-.frame i:nth-child(3) { animation-delay: -3.5s; }
-.frame i:nth-child(4) { animation-delay: -5.2s; }
-@keyframes corner-breathe {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
+  border: 0 solid rgba(255,0,0,0.55);
+  filter: drop-shadow(0 0 6px rgba(255,0,0,0.35));
 }
 .frame i:nth-child(1) { top: 0;    left: 0;  border-top-width: 1px; border-left-width: 1px; }
 .frame i:nth-child(2) { top: 0;    right: 0; border-top-width: 1px; border-right-width: 1px; }
 .frame i:nth-child(3) { bottom: 0; left: 0;  border-bottom-width: 1px; border-left-width: 1px; }
 .frame i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
 
-/* ---- HUD readouts ------------------------------------------ */
-
+/* ---- HUD ----------------------------------------------------- */
 .hud {
   position: absolute;
   font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(224,224,224,0.65);
-  text-shadow: 0 0 6px rgba(255,255,255,0.15);
+  color: rgba(224,224,224,0.45);
   white-space: nowrap;
-  z-index: 3;
+  z-index: 10;
 }
-.hud .r { color: rgba(255,0,0,0.9); }
-.hud-tl { top: calc(26px + env(safe-area-inset-top)); left: calc(30px + env(safe-area-inset-left)); }
-.hud-tr { top: calc(26px + env(safe-area-inset-top)); right: calc(30px + env(safe-area-inset-right)); text-align: right; }
-.hud-bl { bottom: calc(26px + env(safe-area-inset-bottom)); left: calc(30px + env(safe-area-inset-left)); }
-.hud-br { bottom: calc(26px + env(safe-area-inset-bottom)); right: calc(30px + env(safe-area-inset-right)); text-align: right; }
+.hud .r { color: rgba(255,0,0,0.7); }
+.hud-tl { top: 26px; left: 30px; }
+.hud-tr { top: 26px; right: 30px; text-align: right; }
+.hud-bl { bottom: 26px; left: 30px; }
+.hud-br { bottom: 26px; right: 30px; text-align: right; }
 
-@media (max-width: 560px) {
-  .hud-tr, .hud-bl { display: none; }  /* keep phone corners quiet */
-}
-
-/* ---- the ring ------------------------------------------------ */
-/* the wireframe torus, live on canvas — sockets dark, awaiting.
-   Engine is a trimmed cut of demos/ring.html (same light pipeline). */
-
-#ring {
+/* ---- canvas -------------------------------------------------- */
+#net {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* static fallback if the engine can't run: a whisper of the ring */
-.ring-fallback {
-  display: none;
-  position: absolute;
-  width: min(78vmin, 640px);
-  aspect-ratio: 1.6;
-  border-radius: 50%;
-  border: 1px solid rgba(255,0,0,0.35);
-  box-shadow: 0 0 40px rgba(255,0,0,0.15), inset 0 0 60px rgba(255,0,0,0.06);
-  transform: rotate(-14deg);
-  pointer-events: none;
-}
-.no-canvas .ring-fallback { display: block; }
-
-/* ---- transmission whispers ----------------------------------- */
-
-/* cryptic interference — the menu you left on too long. Flickers in,
-   holds long enough to be read, then slowly melts into the red-black. */
-.whisper {
-  position: absolute;
+  width: 100%; height: 100%;
   z-index: 1;
-  font-size: 0.66rem;
-  font-weight: 600;
+  cursor: crosshair;
+  /* no browser touch behavior on the canvas at all — taps still
+     fire as clicks, but pinch/double-tap never grab the viewport */
+  touch-action: none;
+}
+
+/* ---- discipline legend (filter rail) ------------------------- */
+.legend {
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.legend .lg-title {
+  font-size: 0.48rem;
   letter-spacing: 0.3em;
+  color: rgba(224,224,224,0.3);
   text-transform: uppercase;
-  color: rgba(255,60,60,0.8);
-  text-shadow: 0 0 10px rgba(255,0,0,0.55);
-  filter: blur(0.7px);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
+  margin-bottom: 2px;
 }
-.whisper.show { animation: whisper 9s linear forwards; }
-@keyframes whisper {
-  0%   { opacity: 0;    filter: blur(1.6px); }
-  3%   { opacity: 0.95; filter: blur(0.6px); }
-  6%   { opacity: 0.15; filter: blur(0.9px); }
-  9%   { opacity: 0.85; filter: blur(0.6px); }
-  13%  { opacity: 0.3;  filter: blur(0.9px); }
-  17%  { opacity: 0.9;  filter: blur(0.6px); }
-  45%  { opacity: 0.75; filter: blur(0.7px); }
-  /* long decay: dim + defocus until it's just heat in the black */
-  75%  { opacity: 0.32; filter: blur(1.4px); }
-  100% { opacity: 0;    filter: blur(3.5px); }
-}
-
-/* ---- center message ----------------------------------------- */
-
-/* the whole panel is one link now — the door to os.oaklens.art */
-.msg {
-  position: absolute;
-  z-index: 2;
-  display: block;
-  text-align: center;
-  text-decoration: none;
-  color: inherit;
-  padding: clamp(18px, 4vmin, 30px) clamp(22px, 5vmin, 44px);
-  background: rgba(0,0,0,0.75);
-  border: 1px solid rgba(255,0,0,0.3);
-  box-shadow: 0 0 30px rgba(255,0,0,0.15), inset 0 0 20px rgba(255,0,0,0.05);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-.msg:hover, .msg:focus-visible {
-  border-color: rgba(255,0,0,0.75);
-  box-shadow: 0 0 45px rgba(255,0,0,0.3), inset 0 0 24px rgba(255,0,0,0.08);
-  outline: none;
-}
-.msg:hover .sub, .msg:focus-visible .sub {
-  color: var(--white);
-  border-color: var(--red);
-  text-shadow: 0 0 12px rgba(255,0,0,0.45);
-}
-
-/* glass catch-light along the panel's top edge */
-.msg::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 8%; right: 8%;
-  height: 1px;
-  background: linear-gradient(90deg,
-              transparent, rgba(255,255,255,0.28), transparent);
-  pointer-events: none;
-}
-
-.msg h1 {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: clamp(1.05rem, 4.6vw, 1.75rem);
-  letter-spacing: 0.34em;
-  margin-right: -0.34em;   /* re-center tracked caps */
-  color: var(--white);
-  text-shadow: 0 0 22px rgba(255,0,0,0.4);
-  white-space: nowrap;
-}
-
-/* trailing dots type themselves */
-.msg h1 .dots {
-  display: inline-block;
-  width: 1.9em;
-  text-align: left;
-  vertical-align: bottom;
-}
-.msg h1 .dots::after {
-  content: '...';
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: bottom;
-  animation: dots 2.4s steps(4, jump-none) infinite;
-}
-@keyframes dots {
-  from { width: 0; }
-  to   { width: 1.9em; }
-}
-
-/* block cursor */
-.msg h1 .cur {
-  display: inline-block;
-  width: 0.52em; height: 1em;
-  margin-left: 0.14em;
-  vertical-align: text-bottom;
-  background: var(--red);
-  box-shadow: 0 0 10px rgba(255,0,0,0.7);
-  animation: blink 1.1s steps(1) infinite;
-}
-@keyframes blink { 50% { opacity: 0; } }
-
-.msg .sub {
-  display: inline-block;
-  margin-top: 14px;
-  font-size: clamp(0.58rem, 2.4vw, 0.72rem);
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: rgba(224,224,224,0.55);
-  border-bottom: 1px solid rgba(255,0,0,0.35);
-  padding-bottom: 3px;
-  transition: color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease;
-}
-.msg .sub .r { color: rgba(255,0,0,0.9); }
-
-.msg .sub-addr {
-  display: block;
-  margin-top: 10px;
-  font-size: clamp(0.5rem, 2vw, 0.62rem);
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(224,224,224,0.35);
-  transition: color 0.25s ease;
-}
-.msg:hover .sub-addr, .msg:focus-visible .sub-addr {
-  color: rgba(224,224,224,0.6);
-}
-
-/* phone: tighten tracking + padding so the nowrap headline always fits */
-@media (max-width: 560px) {
-  .msg { padding: 15px 16px 17px; max-width: calc(100vw - 36px); }
-  .msg h1 { font-size: clamp(0.78rem, 3.7vw, 1.2rem); letter-spacing: 0.2em; margin-right: -0.2em; }
-  .msg .sub { letter-spacing: 0.18em; }
-  .msg .sub-addr { letter-spacing: 0.16em; margin-top: 8px; }
-}
-
-/* ---- ambient audio HUD --------------------------------------- */
-
-.audio-toggle {
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
+.legend button {
+  display: flex;
   align-items: center;
   gap: 9px;
   background: none;
   border: 0;
-  padding: 6px 10px;
+  color: rgba(224,224,224,0.5);
   font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.25s ease, text-shadow 0.25s ease;
+  padding: 2px 0;
+  transition: color 0.2s ease, opacity 0.2s ease;
+  white-space: nowrap;
 }
-.audio-toggle:hover, .audio-toggle:focus-visible {
-  color: var(--white);
-  text-shadow: 0 0 10px rgba(255,0,0,0.4);
+.legend button i {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 8px var(--c);
+  flex: none;
+  opacity: 0.85;
 }
-.audio-toggle:focus-visible {
-  outline: 1px solid rgba(255,0,0,0.6);
-  outline-offset: 3px;
-}
+.legend button .n { color: rgba(224,224,224,0.28); margin-left: 2px; }
+.legend button:hover  { color: #fff; }
+.legend button.active { color: #fff; }
+.legend button.mute   { opacity: 0.3; }
+@media (max-width: 700px) { .legend { display: none; } }
 
-/* three-bar level meter — moves only while audio actually plays */
-.audio-toggle .eq {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 9px;
-}
-.audio-toggle .eq i {
-  width: 2px; height: 3px;
-  background: var(--red);
-  box-shadow: 0 0 4px rgba(255,0,0,0.6);
-  opacity: 0.45;
-}
-.audio-toggle.on .eq i { opacity: 1; animation: eq 1.1s ease-in-out infinite alternate; }
-.audio-toggle.on .eq i:nth-child(1) { animation-duration: 0.9s; }
-.audio-toggle.on .eq i:nth-child(2) { animation-duration: 1.3s; animation-delay: -0.4s; }
-.audio-toggle.on .eq i:nth-child(3) { animation-duration: 0.7s; animation-delay: -0.2s; }
-@keyframes eq {
-  from { height: 2px; }
-  to   { height: 9px; }
-}
-
-/* attribution — CC BY-NC 4.0, quiet but present */
-.hud-credit {
-  bottom: calc(8px + env(safe-area-inset-bottom));
+/* ---- bottom panel: node card + controls ---------------------- */
+.panel {
+  position: absolute;
+  bottom: 52px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.48rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  width: min(94vw, 620px);
+  pointer-events: none;
+}
+
+.node-info {
+  position: relative;
+  overflow: hidden;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 18px 30px 16px;
+  min-width: min(88vw, 320px);
+  text-align: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  transform: translateY(14px) scale(0.96);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+}
+.node-info.active { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.node-info h2 {
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  margin-bottom: 5px;
+  color: #fff;
+  position: relative;
+}
+/* the monogram — a callsign plate, not an icon. First letter of the
+   node's own domain, watermarked in its discipline light. Zero deps,
+   zero third-party favicon fetches (visitors' browsers never touch a
+   member site until they choose to). */
+.glyph {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-53%);
+  font-size: 5.4rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.16;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* the REAL address is the identity — bare domain, straight link,
+   no redirect, no tracking hop */
+.addr {
+  display: inline-block;
+  position: relative;
+  font-size: 0.7rem;
   letter-spacing: 0.22em;
-  color: rgba(224,224,224,0.28);
-  text-shadow: none;
+  text-transform: uppercase;
   text-decoration: none;
-  transition: color 0.25s ease;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 1px;
+  margin-bottom: 7px;
+  transition: border-color 0.2s ease, text-shadow 0.2s ease;
 }
-.hud-credit:hover, .hud-credit:focus-visible { color: rgba(224,224,224,0.7); }
-
-@media (max-width: 560px) {
-  .hud-credit .long { display: none; }
+.addr:hover, .addr:focus-visible { border-bottom-color: currentColor; text-shadow: 0 0 14px currentColor; }
+.node-info .meta {
+  font-size: 0.52rem;
+  letter-spacing: 0.24em;
+  color: rgba(224,224,224,0.4);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  position: relative;
+}
+.card-actions { display: flex; gap: 8px; justify-content: center; margin-top: 13px; position: relative; }
+.card-actions .btn { padding: 8px 14px; }
+a.btn { text-decoration: none; display: inline-block; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; position: relative; }
+.badge {
+  font-size: 0.48rem;
+  padding: 4px 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-/* ---- motion off ---------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  .msg h1 .dots::after, .msg h1 .cur,
-  .frame i, .audio-toggle.on .eq i,
-  .whisper.show { animation: none; }
-  .msg h1 .dots::after { width: auto; }
-  .whisper { display: none; }
+.controls { display: flex; gap: 9px; pointer-events: auto; flex-wrap: wrap; justify-content: center; }
+.btn {
+  background: rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.72);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: all 0.25s ease;
 }
+.btn:hover, .btn:focus-visible {
+  border-color: rgba(255,255,255,0.45);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255,255,255,0.08);
+}
+.btn.drift { border-color: rgba(255,0,0,0.4); color: rgba(255,120,120,0.9); }
+.btn.drift:hover { border-color: var(--red); color: #fff; box-shadow: 0 0 20px rgba(255,0,0,0.2); }
+
+.hint {
+  font-size: 0.48rem;
+  letter-spacing: 0.24em;
+  color: rgba(224,224,224,0.22);
+  text-transform: uppercase;
+}
+
+/* ---- landscape touch (tablet / wide phone) --------------------
+   Stacked under the ring, the card + controls eat the short axis
+   and the ring shrinks while both sides sit empty (owner, iPad
+   mini 2026-07-17). In landscape the panel becomes a right-hand
+   column, vertically centered; the ring takes the height back and
+   centers between the legend and the panel. resize() measures the
+   column and reserves the side instead of the bottom. Desktop
+   (fine pointer) and portrait are untouched. */
+@media (pointer: coarse) and (orientation: landscape) {
+  .panel {
+    left: auto;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: 50%;
+    transform: translate(0, 50%);
+    width: min(42vw, 400px);
+    gap: 11px;
+  }
+  .node-info { min-width: 0; width: 100%; padding: 14px 20px 12px; }
+  .hint { text-align: center; }
+}
+
+/* ---- the directory panel: search + sort + filter + list -------
+   ONE instrument (owner call, 2026-07-16): search and index were
+   two doors into the same room, which erodes muscle memory. `/`
+   lands in the input, `i` lands on the list — same panel, same
+   layout, every time. */
+#index-input {
+  width: 100%;
+  background: none;
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  outline: none;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  padding: 14px 18px;
+  text-transform: uppercase;
+}
+#index-input::placeholder { color: rgba(224,224,224,0.28); }
+#index-input:focus { background: rgba(255,255,255,0.03); }
+/* 16px stops iOS Safari's zoom-on-focus; coarse pointers only so the
+   desktop type scale is untouched */
+@media (pointer: coarse) { #index-input { font-size: 16px; } }
+
+.index-tools {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 9px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sorts { display: flex; align-items: center; gap: 6px; }
+.sorts .s-label {
+  font-size: 0.48rem;
+  letter-spacing: 0.26em;
+  color: rgba(224,224,224,0.3);
+  margin-right: 2px;
+}
+.sorts .s-label .r { color: rgba(255,0,0,0.6); }
+.sorts button, .chips button {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(224,224,224,0.5);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sorts button:hover, .chips button:hover,
+.sorts button:focus-visible, .chips button:focus-visible { color: #fff; }
+.sorts button.on { color: #fff; border-color: rgba(255,255,255,0.55); }
+/* the discipline chips double as the LEGEND on small screens — the
+   only place a phone user learns which color means what */
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chips button { display: flex; align-items: center; gap: 6px; flex: none; }
+.chips button i {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--c, rgba(224,224,224,0.5));
+  box-shadow: 0 0 7px var(--c, transparent);
+}
+.chips button.on { color: #fff; border-color: var(--c, rgba(255,255,255,0.55)); }
+.chips button.mute { opacity: 0.38; }
+
+.index-list .hl { color: #fff; border-bottom: 1px solid rgba(255,255,255,0.5); }
+.index-list button.sel { background: rgba(255,255,255,0.06); color: #fff; }
+.index-list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idx-div {
+  font-size: 0.46rem;
+  letter-spacing: 0.28em;
+  color: rgba(224,224,224,0.25);
+  padding: 12px 18px 5px;
+  text-transform: uppercase;
+}
+.idx-none { padding: 16px 18px; font-size: 0.55rem; color: rgba(224,224,224,0.3); letter-spacing: 0.2em; text-transform: uppercase; }
+
+/* ---- INDEX overlay: the ring as an honest text directory ------ */
+/* Screen readers get a real list, power users get scannability —
+   the visualization never has to be the only way in. */
+.index {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: start center;
+  padding-top: 10vh;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.index.open { display: grid; }
+.index-box {
+  width: min(94vw, 560px);
+  background: rgba(0,0,0,0.92);
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 0 40px rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+@media (max-width: 700px) { .index { padding-top: 5vh; } .index-box { max-height: 86vh; } }
+.index-head {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(224,224,224,0.45);
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.index-head .r { color: rgba(255,0,0,0.7); }
+.index-list {
+  list-style: none;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.index-list button {
+  display: grid;
+  grid-template-columns: 3.4em 1fr auto 10px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: rgba(224,224,224,0.7);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  padding: 9px 18px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-align: left;
+}
+.index-list button:hover, .index-list button:focus-visible { background: rgba(255,255,255,0.06); color: #fff; }
+.index-list .rid { color: rgba(224,224,224,0.3); }
+.index-list .dm { color: rgba(224,224,224,0.38); font-size: 0.52rem; letter-spacing: 0.12em; }
+.index-list .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 7px var(--c); justify-self: end; }
+.index-list .dot { grid-column: 4; }
+/* tight screens drop the domain column — but never the signal column,
+   which is the whole point of the FRESH PINGS sort */
+@media (max-width: 480px) { .index-list .k-dom { display: none; } }
+
+/* ---- since-last-sync note (rides the NODES hud line) ----------- */
+.hud-bl .sync { color: rgba(224,224,224,0); transition: color 1.2s ease; }
+.hud-bl .sync.show { color: rgba(224,224,224,0.6); }
+
+/* ---- the guide (?) — quiet, organized, sentence-case ----------
+   The HUD speaks in uppercase telegraph; the guide speaks like a
+   person. Approachable language is the product voice here. */
+.help-btn {
+  position: absolute;
+  top: 46px; right: 30px;
+  z-index: 12;
+  width: 26px; height: 26px;
+  background: rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(224,224,224,0.55);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.help-btn:hover, .help-btn:focus-visible { color: #fff; border-color: rgba(255,255,255,0.5); }
+.help {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  place-items: start center;
+  padding: 6vh 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.help.open { display: grid; }
+.help-box {
+  width: min(94vw, 700px);
+  background: rgba(0,0,0,0.94);
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 0 40px rgba(255,255,255,0.05);
+}
+.help-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(224,224,224,0.45);
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.help-head .r { color: rgba(255,0,0,0.7); }
+.help-x {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(224,224,224,0.5);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.help-x:hover, .help-x:focus-visible { color: #fff; border-color: rgba(255,255,255,0.5); }
+.help-body { display: grid; grid-template-columns: 1fr 1fr; }
+.help-body section { padding: 18px 22px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.help-body section:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.06); }
+@media (max-width: 620px) {
+  .help-body { grid-template-columns: 1fr; }
+  .help-body section:nth-child(odd) { border-right: 0; }
+}
+.help-body h3 {
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: rgba(255,120,120,0.75);
+  margin-bottom: 10px;
+}
+.help-body p, .help-body li span {
+  font-size: 0.66rem;
+  line-height: 1.75;
+  letter-spacing: 0.04em;
+  color: rgba(224,224,224,0.72);
+  text-transform: none;
+}
+.help-body p + p { margin-top: 8px; }
+.help-body p b, .help-body li span b { color: rgba(255,255,255,0.9); font-weight: 600; }
+.glyphs, .keys { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.glyphs li { display: flex; gap: 10px; align-items: baseline; }
+.glyphs li > i, .glyphs li > b { flex: none; }
+.g-dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(0,230,255); box-shadow: 0 0 8px rgb(0,230,255); align-self: center; }
+.g-packet { width: 16px; height: 2px; background: linear-gradient(90deg, transparent, #fff); box-shadow: 0 0 6px rgba(255,255,255,0.7); align-self: center; }
+.g-num { font-size: 0.6rem; color: rgba(224,224,224,0.45); letter-spacing: 0.1em; }
+.g-letter { font-size: 1rem; font-weight: 700; color: rgb(0,230,255); text-shadow: 0 0 10px rgba(0,230,255,0.6); line-height: 1; }
+.swatches { display: flex; flex-wrap: wrap; gap: 7px 12px; margin-top: 13px; }
+.swatches span { display: flex; align-items: center; gap: 6px; font-size: 0.5rem; letter-spacing: 0.14em; color: rgba(224,224,224,0.55); }
+.swatches i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 7px var(--c); }
+.keys li { display: flex; gap: 10px; align-items: center; }
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 2px 6px;
+  min-width: 14px;
+  text-align: center;
+}
+.touch-note { margin-top: 10px; }
+@media (pointer: coarse) {
+  .help { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(0,0,0,0.88); }
+}
+
+/* ---- idle invitation (the empty card slot speaks) -------------
+   Quiet, HUD-voiced. It yields to the node card on focus and
+   returns on unfocus — same slot, never both at once. */
+.card-slot { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+.idle-invite {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  width: max-content;
+  max-width: 94vw;
+  text-align: center;
+  pointer-events: auto;
+  transition: opacity 0.3s ease;
+}
+.idle-invite.hide { opacity: 0; pointer-events: none; }
+.ii-line {
+  font-size: 0.5rem;
+  letter-spacing: 0.26em;
+  line-height: 1.9;
+  color: rgba(224,224,224,0.35);
+  text-transform: uppercase;
+}
+.ii-count {
+  font-size: 0.48rem;
+  letter-spacing: 0.26em;
+  color: rgba(255,120,120,0.6);
+  text-transform: uppercase;
+}
+
+/* ---- the invite overlay — same visual family as the guide ---- */
+.invite-box { width: min(94vw, 520px); }
+.inv-seat {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,120,120,0.75);
+  padding: 14px 22px 0;
+}
+.inv-body { padding: 18px 22px 22px; }
+.inv-body p {
+  font-size: 0.66rem;
+  line-height: 1.75;
+  letter-spacing: 0.04em;
+  color: rgba(224,224,224,0.72);
+  text-transform: none;
+}
+.inv-body p + p { margin-top: 9px; }
+.inv-cta { margin-top: 16px; }
+.inv-foot {
+  margin-top: 14px;
+  font-size: 0.48rem;
+  letter-spacing: 0.26em;
+  color: rgba(224,224,224,0.38);
+  text-transform: uppercase;
+}
+
+/* ---- coarse-pointer (touch) performance ------------------------
+   backdrop-filter over a live canvas forces the blurred region to
+   recomposite every animation frame — on a mid-tier phone that alone
+   makes plain text UI feel underwater. Touch devices get solid
+   panels; desktop keeps the glass. (The engine also parks while the
+   search/index overlays are open — see holdEngine().) */
+@media (pointer: coarse) {
+  .node-info, .btn, .index {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .node-info { background: rgba(0,0,0,0.94); }
+  .btn { background: rgba(0,0,0,0.9); }
+  .index { background: rgba(0,0,0,0.82); }
+}
+/* taps should answer instantly — no gray flash, no double-tap-zoom
+   arbitration delay, feedback with no transition lag */
+button, .btn, .addr { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.btn:active { transition-duration: 0.05s; border-color: rgba(255,255,255,0.6); color: #fff; }
+.index-list button:active, .results button:active { background: rgba(255,255,255,0.1); color: #fff; }
+/* off-screen index rows don't pay layout/paint until scrolled to */
+.index-list li { content-visibility: auto; contain-intrinsic-size: auto 34px; }
+
+/* ---- static fallback: no JS, no canvas, or an engine that threw ----
+   The instrument paints itself with light; when the browser can't run
+   that (JS off, no canvas 2D, ancient/locked-down engine), the page
+   must still say what the network IS and how to join — never a black
+   void. Hidden by default; a <noscript> style shows it with no JS, and
+   the boot guard adds body.no-engine on a canvas/exception failure. */
+.fallback {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: max(40px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
+  text-align: center;
+}
+.fb-ring { width: min(46vw, 220px); height: auto; opacity: 0.92; }
+.fb-copy { max-width: 30rem; }
+.fb-h {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(224,224,224,0.9);
+  margin-bottom: 16px;
+}
+.fb-h .r { color: rgba(255,0,0,0.7); }
+.fb-lede {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: rgba(224,224,224,0.8);
+  margin-bottom: 14px;
+}
+.fb-note {
+  font-size: 0.72rem;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: rgba(224,224,224,0.42);
+  margin-bottom: 22px;
+}
+/* the address is split ("[at]") so it survives with no JS to assemble
+   it AND so Cloudflare's obfuscator never sees a literal @-address */
+.fb-cta {
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  line-height: 2;
+  text-transform: uppercase;
+  color: rgba(255,120,120,0.85);
+}
+.fb-cta b { color: #fff; font-weight: 600; }
+/* engine-failed swap (JS ran, canvas/engine didn't): hide the live
+   instrument, keep the corner frame, show the static page */
+body.no-engine #net,
+body.no-engine .legend,
+body.no-engine .panel,
+body.no-engine .help-btn,
+body.no-engine .hud-tr,
+body.no-engine .hud-bl,
+body.no-engine .hud-br,
+body.no-engine .index,
+body.no-engine .help,
+body.no-engine #invite { display: none !important; }
+body.no-engine .fallback { display: flex; }
 </style>
 </head>
 <body>
 
-<main class="stage">
+<div class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
-  <div class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="hud hud-tl">ANALOGS.NETWORK</div>
+<div class="hud hud-tr">SYS <span class="r">//</span> ACTIVE</div>
+<div class="hud hud-bl">NODES <span class="r">//</span> <span id="node-count">000</span><span class="sync" id="sync-note" aria-live="polite"></span></div>
+<div class="hud hud-br">RING <span class="r">//</span> ONLINE</div>
 
-  <div class="hud hud-tl">ANALOGS.NETWORK</div>
-  <div class="hud hud-tr">SYS <span class="r">//</span> PRE-INIT</div>
-  <div class="hud hud-bl">NODES <span class="r">//</span> <span id="node-count">001</span></div>
-  <div class="hud hud-br">EST. 2026</div>
-  <!-- No on-site node branding (owner call, 2026-07-14b): the network
-       stands independent. oaklens.art is listed as node 000 in nodes/;
-       its 88x31 button stays HOSTED at assets/buttons/ for the badge
-       system, just not displayed here. -->
+<canvas id="net"></canvas>
 
+<!-- no JS at all: hide the live instrument, show the static fallback,
+     with one CSS block that only applies when scripts are off -->
+<noscript><style>
+  #net, .legend, .panel, .help-btn, .hud-tr, .hud-bl, .hud-br,
+  .index, .help, #invite { display: none !important; }
+  .fallback { display: flex !important; }
+</style></noscript>
 
-  <button class="hud audio-toggle" id="audio-toggle" hidden aria-pressed="false"
-          title="Ambient audio">
-    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
-    AUDIO <span class="r">//</span> <span id="audio-state">OFF</span>
-  </button>
-  <a class="hud hud-credit" id="audio-credit" hidden
-     href="" rel="noopener" target="_blank">
-  </a>
+<!-- static fallback (see the .fallback CSS): the honest page for a
+     browser that can't paint the ring. Real text for readers + crawlers;
+     the join address is human-readable and JS-free. -->
+<div class="fallback" id="fallback">
+  <svg class="fb-ring" viewBox="0 0 200 200" role="img"
+       aria-label="The analogs.network ring — an origin node and seven discipline colors around a tilted ring">
+    <ellipse cx="100" cy="100" rx="82" ry="42" fill="none" stroke="rgba(255,0,0,0.32)" stroke-width="1"/>
+    <ellipse cx="100" cy="100" rx="58" ry="29" fill="none" stroke="rgba(255,0,0,0.12)" stroke-width="1"/>
+    <circle cx="167" cy="76"  r="2.8" fill="rgb(0,230,255)"/>
+    <circle cx="177" cy="114" r="2.8" fill="rgb(255,30,70)"/>
+    <circle cx="135" cy="138" r="2.8" fill="rgb(255,180,0)"/>
+    <circle cx="72"  cy="140" r="2.8" fill="rgb(0,255,110)"/>
+    <circle cx="26"  cy="118" r="2.8" fill="rgb(170,50,255)"/>
+    <circle cx="23"  cy="86"  r="2.8" fill="rgb(255,0,170)"/>
+    <circle cx="65"  cy="62"  r="2.8" fill="rgb(200,210,255)"/>
+    <circle cx="100" cy="58"  r="3.8" fill="#fff"/>
+  </svg>
+  <div class="fb-copy">
+    <h1 class="fb-h">ANALOGS.NETWORK</h1>
+    <p class="fb-lede">A webring for creatives who run their own corner of the web.</p>
+    <p class="fb-note">This page draws the ring with live canvas light, which
+      your browser isn&rsquo;t running right now. The network itself is real,
+      and joining is one email &mdash; no account, no cost, nothing to install.</p>
+    <p class="fb-cta">SEND YOUR SITE &middot; <b>THEMONITOR [AT] ANALOGS.NETWORK</b> &middot; SUBJECT: ADD ME</p>
+  </div>
+</div>
 
-  <canvas id="ring" aria-hidden="true"></canvas>
-  <div class="ring-fallback" aria-hidden="true"></div>
+<nav class="legend" id="legend" aria-label="Filter by discipline">
+  <div class="lg-title">DISCIPLINES</div>
+</nav>
 
+<div class="panel">
+  <div class="card-slot">
+  <div class="node-info" id="node-info">
+    <div class="glyph" id="ni-glyph" aria-hidden="true">A</div>
+    <h2 id="ni-name">Node</h2>
+    <a class="addr" id="ni-addr" href="https://analogs.network" target="_blank" rel="noopener">analogs.network</a>
+    <div class="meta" id="ni-meta">N#000</div>
+    <div class="badges" id="ni-badges"></div>
+    <div class="card-actions">
+      <a class="btn" id="ni-open" href="https://analogs.network" target="_blank" rel="noopener">OPEN SITE &rarr;</a>
+      <button class="btn" id="ni-share" title="Share this node's address">SHARE</button>
+    </div>
+  </div>
+  <div class="idle-invite" id="idle-invite">
+    <div class="ii-line">A WEBRING FOR CREATIVES WHO RUN THEIR OWN CORNER OF THE WEB</div>
+    <button class="btn" id="ii-add" title="Join the ring">ADD YOUR SITE +</button>
+    <div class="ii-count" id="ii-count" hidden></div>
+  </div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="btn-prev" title="Previous node on the ring">&larr; PREV</button>
+    <button class="btn drift" id="btn-drift">DRIFT ///</button>
+    <button class="btn" id="btn-next" title="Next node on the ring">NEXT &rarr;</button>
+    <button class="btn" id="btn-index" title="Search and browse every node">INDEX /</button>
+  </div>
+  <div class="hint">CLICK A NODE &middot; / SEARCH &middot; I INDEX &middot; ? GUIDE &middot; DEMO // MOCK DATA</div>
+</div>
 
-  <div class="whisper" id="whisper" aria-hidden="true"></div>
+<button class="help-btn" id="btn-help" aria-label="Open the guide" title="Guide">?</button>
 
-  <a class="msg" id="msg-link"
-     aria-label="Become a founding node. Send add me and your URL to themonitor at analogs.network.">
-    <h1>AWAITING NODES<span class="dots"></span><span class="cur" aria-hidden="true"></span></h1>
-    <span class="sub">
-      BECOME A FOUNDING NODE <span class="r">///</span>
-    </span>
-    <span class="sub-addr">
-      SEND "ADD ME" + YOUR URL<br>
-      <span id="tm-addr">THEMONITOR</span>
-    </span>
-  </a>
-  <script>
-  /* assemble the address at runtime — Cloudflare's email obfuscation
-     scans the HTML source for mailto: and @-addresses and replaces them
-     with an encoded blob that requires their decoder script. Building
-     the address in JS keeps it out of the source entirely. */
-  (function () {
-    var u = 'themonitor', d = 'analogs.network';
-    var a = u + '@' + d;
-    var el = document.getElementById('msg-link');
-    var sp = document.getElementById('tm-addr');
-    if (el) el.href = 'mail' + 'to:' + a + '?subject=add%20me&body=my%20site%3A%20';
-    if (sp) sp.textContent = (u + '@' + d).toUpperCase();
-  })();
-  </script>
+<div class="help" id="help" role="dialog" aria-modal="true" aria-label="Guide">
+  <div class="help-box">
+    <div class="help-head">GUIDE <span class="r">//</span> THE RING
+      <button class="help-x" id="help-x" aria-label="Close the guide">CLOSE &times;</button>
+    </div>
+    <div class="help-body">
+      <section>
+        <h3>WHAT THIS IS</h3>
+        <p>Every light on this ring is a real, independent website, run by one
+        creative person. The ring is the directory: spin it, open a node, step
+        through to the real site.</p>
+        <p>When someone new joins, a new socket lights up. The ring grows one
+        light at a time.</p>
+      </section>
+      <section>
+        <h3>READING THE RING</h3>
+        <ul class="glyphs">
+          <li><i class="g-dot"></i><span>A dot is a member — a <b>node</b>. Its color is their discipline.</span></li>
+          <li><b class="g-num">N#043</b><span>Join order. Numbers are permanent and never reused — a low number means they were here early.</span></li>
+          <li><b class="g-letter">S</b><span>The big letter on a card is the first letter of the member&rsquo;s own web address.</span></li>
+          <li><i class="g-packet"></i><span>The traveling lights are signals riding the chain that links every member, in join order.</span></li>
+        </ul>
+        <div class="swatches" aria-label="Discipline colors"></div>
+      </section>
+      <section>
+        <h3>FINDING PEOPLE</h3>
+        <p><b>INDEX /</b> opens the directory. Type a name, a web address, a
+        discipline — or a node number: <b>43</b>, <b>#43</b> and <b>N#043</b>
+        all find the same node.</p>
+        <p>Sort by <b>RING</b> (join order), <b>A&ndash;Z</b>, or <b>FRESH
+        PINGS</b> (latest posts first). Click the same sort again to reverse
+        it.</p>
+        <p>The colored chips filter by discipline — the list, the ring, and
+        <b>DRIFT</b> all follow. <b>DRIFT ///</b> jumps somewhere
+        unexpected.</p>
+      </section>
+      <section>
+        <h3>THE CARD</h3>
+        <p><b>OPEN SITE &rarr;</b> goes straight to the member&rsquo;s own
+        site — a plain link. Nothing is tracked, nothing redirects.</p>
+        <p><b>SHARE</b> hands you their address, clean.</p>
+        <p>Every focused node is also a link: bookmark or copy the page URL
+        and it comes right back here.</p>
+      </section>
+      <section>
+        <h3>KEYBOARD</h3>
+        <ul class="keys">
+          <li><kbd>/</kbd><span>search</span></li>
+          <li><kbd>I</kbd><span>index</span></li>
+          <li><kbd>?</kbd><span>this guide</span></li>
+          <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd><span>walk the ring</span></li>
+          <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&crarr;</kbd><span>pick from the list</span></li>
+          <li><kbd>ESC</kbd><span>close &middot; let go</span></li>
+        </ul>
+        <p class="touch-note">On touch: tap a node to focus it, tap empty
+        space to let it go. Drag anywhere to spin the ring &mdash; it
+        drifts back to its own pace when you release.</p>
+      </section>
+      <section id="help-demo-note">
+        <h3>DEMO NOTE</h3>
+        <p>Everything here is mock data — placeholder names, placeholder
+        addresses. The real ring lights up at launch.</p>
+      </section>
+    </div>
+  </div>
+</div>
 
-</main>
+<div class="help" id="invite" role="dialog" aria-modal="true" aria-label="Join the ring">
+  <div class="help-box invite-box">
+    <!-- opened from a vacant seat, the head reads like an index entry:
+         the seat number takes the head and JOIN // THE RING becomes
+         the sub-line (see openInvite) -->
+    <div class="help-head"><span id="invite-head">JOIN <span class="r">//</span> THE RING</span>
+      <button class="help-x" id="invite-x" aria-label="Close the invitation">CLOSE &times;</button>
+    </div>
+    <div class="inv-seat" id="invite-seat" hidden></div>
+    <div class="inv-body">
+      <!-- shown only when a HELD seat opened this overlay -->
+      <p id="inv-held" hidden>This seat is holding for an invited member
+      &mdash; lit before their yes. If it stays quiet the hold expires and
+      the seat opens again; a number only becomes permanent when a member
+      claims it.</p>
+      <p>Every light on this ring is a real, independent website run by one
+      creative person. Yours can be one of them.</p>
+      <p>It&rsquo;s free &mdash; always. No account, no subscription, nothing
+      to install. Paid placement doesn&rsquo;t exist here; that&rsquo;s a
+      founding rule of the network, not a policy that can quietly change.</p>
+      <p>No feeds, no ads, no algorithm. Just doors to real sites, and a ring
+      that grows one light at a time.</p>
+      <p>The whole process is one email: send your site&rsquo;s address to
+      The Monitor and your seat lights up.</p>
+      <!-- href is assembled at runtime — see the invitation wiring -->
+      <a class="btn inv-cta" id="invite-cta" href="#">SEND YOUR SITE &rarr;</a>
+      <div class="inv-foot" id="invite-foot" hidden></div>
+    </div>
+  </div>
+</div>
 
-<!--
-  Ambient audio: "Ominous and Deep Ambience" by Resaural
-  https://freesound.org/s/467026/ — License: Creative Commons 0 (No Attribution Required)
-  Changes: transcoded to Ogg/Opus and AAC (.m4a) for web delivery under 1MB.
--->
-<audio id="bgm" loop preload="auto">
-  <source src="assets/audio/ambient-loop.ogg" type="audio/ogg; codecs=opus">
-  <source src="assets/audio/ambient-loop.m4a" type="audio/mp4">
-</audio>
+<div class="index" id="index" role="dialog" aria-modal="true" aria-label="Node index">
+  <div class="index-box">
+    <div class="index-head">INDEX <span class="r">//</span> <span id="index-count">000</span> NODES</div>
+    <input id="index-input" type="text" placeholder="SEARCH THE RING&hellip;"
+           autocomplete="off" spellcheck="false" aria-label="Filter nodes">
+    <div class="index-tools">
+      <div class="sorts" id="index-sorts" role="group" aria-label="Sort order">
+        <span class="s-label">SORT <span class="r">//</span></span>
+        <button data-sort="ring" title="Join order — seniority on the ring">RING</button>
+        <button data-sort="az" title="Alphabetical">A&ndash;Z</button>
+        <button data-sort="fresh" title="Most recent signal first">FRESH PINGS</button>
+      </div>
+      <div class="chips" id="index-chips" role="group" aria-label="Filter by discipline"></div>
+    </div>
+    <ol class="index-list" id="index-list"></ol>
+  </div>
+</div>
 
 <script>
-(function () {
-  var audio  = document.getElementById('bgm');
-  var btn    = document.getElementById('audio-toggle');
-  var credit = document.getElementById('audio-credit');
-  var state  = document.getElementById('audio-state');
-  var TARGET = 0.75;                 /* background thing — never full blast */
-  var KEY    = 'analogs.audio';
-  var fade   = null;
+/**
+ * ANALOGS.NETWORK — Ring Engine V2
+ *
+ * Form: wireframe torus. Join order IS ring order — the chain of
+ * prev/next links winds the tube like a fiber coil, cross-links
+ * stitch adjacent windings into a mesh. No poles, no top node.
+ *
+ * Light (v2 — synced with the live homepage engine):
+ * everything emissive draws into an offscreen buffer with additive
+ * blending; a filter-free bilinear mip chain (1/4 → 1/8 → 1/16 →
+ * 1/32) does ALL the blurring in hardware — no ctx.filter (it
+ * silently no-ops on WebKit builds without canvas filter support;
+ * that was the Safari banding). Temporal dither at mip res breaks
+ * 8-bit banding in the halos. The far side of the torus sinks
+ * toward deep desaturated red (atmosphere, not just fade). Dust
+ * reacts to the live light sources with squared-distance falloff;
+ * dim motes batch into Path2D alpha buckets. A frame-time governor
+ * sheds quality in tiers instead of chugging. The floor catches
+ * the focused node's color — painted into the 1/4 mip, so unlit
+ * ground stays absolute #000.
+ */
 
-  btn.hidden = credit.hidden = false;   /* controls only exist if JS runs */
+'use strict';
 
-  function pref()    { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
-  function setPref(v){ try { localStorage.setItem(KEY, v); } catch (e) {} }
+/* The engine lives in an async wrapper so boot can await the registry
+   (top-level await needs a module; this stays a plain inline script).
+   Nothing else about the body changed — it is the same top-to-bottom
+   program, one scope deeper. */
+(async () => {
 
-  function setUI(mode) {              /* 'on' | 'off' | 'standby' */
-    btn.classList.toggle('on', mode === 'on');
-    state.textContent = mode.toUpperCase();
-    btn.setAttribute('aria-pressed', mode === 'on' ? 'true' : 'false');
+/* ── the data island ─────────────────────────────────────────
+   Git is the database: manifest.json is compiled from nodes/*.json
+   in CI. When it loads, the ring is REAL — members light their
+   permanent seats (seat index IS the node number) and every other
+   socket sits dark, awaiting a node. When it can't load (file://,
+   offline, the artifact) the seeded mock registry keeps the demo
+   alive. Force the mock with ?data=mock.
+   status.json rides along (best-effort — a live ring with no status
+   file is still a live ring): it carries the admin-owned RESERVED
+   block, the pre-light holds. Identity NEVER travels in it — a hold
+   is a seat number, dates, and an opaque key, nothing else. */
+/* production resilience: over http(s) a failed or empty fetch must
+   never resurrect the 150-seat mock — a deployed ring showing fake
+   members would break consent-first at the front door. The inline
+   node-000 seed (the landing-page pattern) keeps the REAL ring
+   pre-launch-honest instead. file:// (artifact, local checks) still
+   falls back to the full mock demo. */
+const SEED = [{ node: 0, slug: 'oaklens-art', name: 'OAKLENS.ART',
+                url: 'https://oaklens.art', disciplines: ['Photography'],
+                est: '2026-07-14', status: 'online', founding: true }];
+async function loadRegistry() {
+  if (qparam('data') === 'mock') return null;
+  const seed = /^https?:$/.test(location.protocol)
+    ? { nodes: SEED, reserved: {} } : null;
+  const ctl = window.AbortController ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 3000);
+  const get = async p => {
+    const r = await fetch(p, { cache: 'no-cache',
+                               signal: ctl ? ctl.signal : undefined });
+    return r.ok ? r.json() : null;
+  };
+  try {
+    const [m, s] = await Promise.all([get('manifest.json'),
+                                      get('status.json').catch(() => null)]);
+    if (!(m && Array.isArray(m.nodes) && m.nodes.length)) return seed;
+    return { nodes: m.nodes.filter(n => n && n.status === 'online'),
+             reserved: (s && s.reserved) || {} };
+  } catch (e) {
+    return seed;
+  } finally {
+    clearTimeout(timer);
   }
+}
 
-  function fadeTo(target, ms, then) {
-    if (fade) cancelAnimationFrame(fade);
-    var from = audio.volume, t0 = performance.now();
-    (function step(t) {
-      var k = Math.min(1, (t - t0) / ms);
-      audio.volume = from + (target - from) * k;
-      if (k < 1) fade = requestAnimationFrame(step);
-      else if (then) then();
-    })(t0);
-  }
+const TAU = Math.PI * 2;
+const NUM_NODES = 150;
+const FOUNDING = 12;             /* first cohort — white-hot cores */
+const WINDINGS = 9.7;            /* chain revolutions around the tube */
+const PERSPECTIVE = 1700;
+const TILT = 0.84;               /* 0.78 → 0.84 (2026-07-15): more edge-on
+                                    shows the far rim through the crown */
+const TUBE_RATIO = 0.30;
+/* static screen-space roll — a touch off-axis so the instrument
+   reads as an OBJECT placed in the room, not a screensaver motif.
+   Static by design: no parallax, ever. */
+const ROLL = -0.09;
+const COSR = Math.cos(ROLL), SINR = Math.sin(ROLL);
+const WOBBLE_A = 0.1;            /* wobble amplitude (fit accounts for it) */
+const BOKEH = 1;                 /* 0 disables the dust depth-of-field */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function start() {
-    if (fade) cancelAnimationFrame(fade);
-    audio.volume = 0;
-    var p = audio.play();
-    if (p && p.then) p.then(function () {
-      disarm();
-      setUI('on');
-      fadeTo(TARGET, 3500);
-    }).catch(function () {            /* autoplay blocked: first gesture starts it */
-      setUI('standby');
-      arm();
-    });
-  }
+/* ── presentation profile (2026-07-16) ───────────────────────
+   The LOOK is a deliberate choice by device class — never the
+   governor's. LEAN is the phone look (owner call): thin jewel
+   lines on OLED black — quiet halos, no room-glow wash, dither
+   nearly off, and a RAISED depth floor. Why the raise: at full
+   bloom the room-glow mip catches the depth-sunk far rim and
+   keeps it readable as atmosphere; remove the bloom and the SAME
+   depth curve drops the far side into pure black — the torus
+   dissolves. When the bloom comes down, the curve must come up.
+   FULL is the desktop look.
+   Test overrides: ?look=lean|full · ?tier=0..6 (locks the
+   governor). Both are also read from the #hash for contexts
+   that strip query strings. */
+function qparam(k) {
+  try {
+    const s = new URLSearchParams(location.search).get(k);
+    return s !== null ? s : new URLSearchParams(location.hash.slice(1)).get(k);
+  } catch (e) { return null; }
+}
+const QLOOK = qparam('look'), QTIER = qparam('tier');
+const LEAN = QLOOK === 'lean' || (QLOOK !== 'full' &&
+  matchMedia('(pointer: coarse)').matches &&
+  Math.min(window.innerWidth, window.innerHeight) <= 700);
+/* the knobs each look owns */
+const MIP_A      = LEAN ? [0.5, 0.35, 0] : [0.5, 0.54, 0.45];
+                    /* mips[0]/[2]/[3] composite alphas. FULL was
+                       0.5/0.62/0.5 — pared 2026-07-16 (owner:
+                       full intensity read as "product/game";
+                       same physics, quieter mid halo + room). */
+const DITHER_A   = LEAN ? 0.06 : 0.12;   /* grain reads as codec noise on phones */
+const DEPTH_EXP  = LEAN ? 1.45 : 1.6;
+const DEPTH_LIFT = LEAN ? 0.07 : 0;      /* raises every depth-alpha floor */
+const NODE_DFLOOR = LEAN ? 0.16 : 0.05;  /* far-side beads stay legible */
+/* depth → alpha: floor + gain·depth^exp. The LEAN lift moves weight
+   from the gain to the floor, so peak (near-side) brightness is
+   unchanged while the far rim comes up. */
+function depthA(floor, gain, depth) {
+  return floor + DEPTH_LIFT + (gain - DEPTH_LIFT) * Math.pow(depth, DEPTH_EXP);
+}
+console.info('[ring] look=' + (LEAN ? 'lean' : 'full') +
+             (QLOOK ? ' (forced)' : '') +
+             (QTIER !== null ? ' · tier locked at ' + QTIER : ''));
 
-  function stop() {
-    setUI('off');
-    fadeTo(0, 600, function () { audio.pause(); });
-  }
+/* the registry answers before anything is built (≤3s, usually ms) */
+const REG = await loadRegistry();
+const REGISTRY = REG && REG.nodes;
+const LIVE = !!REGISTRY;
+console.info('[ring] registry: ' + (LIVE ? REGISTRY.length + ' node(s) LIVE' : 'mock (demo)'));
+const SOCKETC = { r: 160, g: 166, b: 178 };   /* unclaimed-seat gray */
 
-  function kick(e) {
-    if (e.target && btn.contains(e.target)) return;   /* toggle handles itself */
-    disarm();
-    start();
-  }
-  function arm()    { addEventListener('pointerdown', kick); addEventListener('keydown', kick); }
-  function disarm() { removeEventListener('pointerdown', kick); removeEventListener('keydown', kick); }
+/* ── palette ─────────────────────────────────────────────── */
+const CATS = {
+  'Photography':  { r: 0,   g: 230, b: 255 },
+  'Digital Art':  { r: 255, g: 30,  b: 70  },
+  'Writing':      { r: 255, g: 180, b: 0   },
+  'Code':         { r: 0,   g: 255, b: 110 },
+  'Music':        { r: 170, g: 50,  b: 255 },
+  'Design':       { r: 255, g: 0,   b: 170 },
+  'Architecture': { r: 200, g: 210, b: 255 }
+};
+const CAT_NAMES = Object.keys(CATS);
 
-  btn.addEventListener('click', function () {
-    if (audio.paused) { setPref('on'); start(); }
-    else              { setPref('off'); disarm(); stop(); }
-  });
+/* display-p3 wide gamut when the browser has it — the neon gets
+   measurably hotter on modern screens; falls back to sRGB strings */
+let P3 = false;
+try { P3 = CSS.supports('color', 'color(display-p3 1 0 0 / 0.5)'); } catch (e) {}
+function col(c, a) {
+  if (a <= 0) return 'rgba(0,0,0,0)';
+  return P3
+    ? `color(display-p3 ${(c.r/255).toFixed(3)} ${(c.g/255).toFixed(3)} ${(c.b/255).toFixed(3)} / ${Math.min(1,a).toFixed(3)})`
+    : `rgba(${c.r},${c.g},${c.b},${Math.min(1,a).toFixed(3)})`;
+}
+function mix(c1, c2, k) {
+  return { r: Math.round(c1.r + (c2.r - c1.r) * k),
+           g: Math.round(c1.g + (c2.g - c1.g) * k),
+           b: Math.round(c1.b + (c2.b - c1.b) * k) };
+}
+const WHITE  = { r: 255, g: 255, b: 255 };
+const FARRED = { r: 120, g: 10,  b: 26 };   /* atmospheric far-side red */
+const DUST   = { r: 255, g: 210, b: 200 };
 
-  if (pref() === 'off') setUI('off');   /* respect a visitor who turned it off */
-  else start();
-})();
+/* ── canvases ────────────────────────────────────────────── */
+const canvas = document.getElementById('net');
+const mctx = canvas.getContext('2d', { alpha: false });
+/* no 2D context = ancient/locked-down browser. Bail to the static
+   fallback rather than NPE our way to a black void (caught below). */
+if (!mctx) throw new Error('canvas 2D unsupported');
+const em   = document.createElement('canvas');   /* emissive buffer */
+const ectx = em.getContext('2d');
 
-/* ---- late-night broadcast anomalies ---------------------------
-   Random, subtle: cryptic transmissions surface in the dark. The
-   kind of thing a DVD menu does when nobody's been watching for a
-   while — and the longer you leave it on, the weirder it gets:
-   whispers come more often, and stranger messages unlock deeper
-   into the session. */
-(function () {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+/* bloom mip chain: bilinear downscales so hardware filtering does
+   ALL the blurring — no ctx.filter anywhere. One step to 1/4, then
+   half-steps 1/8 → 1/16 → 1/32 (half-steps below 1/4 keep the wide
+   halos from undersampling/shimmering). */
+const mips = [];
+for (let mi = 0; mi < 4; mi++) {
+  const mc = document.createElement('canvas');
+  mips.push({ c: mc, x: mc.getContext('2d') });
+}
 
-  var whisper = document.getElementById('whisper');
+/* quality tiers — the governor sheds these in order if frames run long.
+   🐛 bloomStride MUST be initialized here (fixed 2026-07-16): v5 only
+   set it inside applyTier(), so a fresh tab that never shed computed
+   `bloomTick % undefined` = NaN in the stride guard and the mip chain
+   NEVER rebuilt — no halos, no room glow, no floor, on every browser
+   ("the stripped lighting" bug). */
+const Q = { wideBloom: true, moteStride: 1, bloomStride: 1, lod: 1 };
+let DPRCAP = 1.5;
+/* device-pixel budget: small viewports (phones) get their FULL native
+   DPR — thin additive lines alias badly when rendered below native
+   res and upscaled (the jagged-edge artifact). A 3x phone at ~330k
+   CSS px costs less than a desktop at 1.5, so crispness there is
+   free; big screens stay capped. 4.8e6 keeps a 1080p desktop at DPR
+   1.5 while big windows now genuinely cap (see the resize() fix). */
+let PXBUDGET = 4.8e6;
+const BUDGET0 = PXBUDGET;        /* restored if the governor climbs back */
+let RESSCALE = 1;                /* tier ④/⑤ sub-native resolution */
 
-  /* ordered mild → weird; later lines only surface deeper into the session */
-  var MSGS = [
-    'HANDSHAKE INCOMPLETE // RETRYING',
-    'SIGNAL BLEED DETECTED',
-    'CARRIER LOST. CARRIER FOUND.',
-    'UPLINK DREAMING',
-    '37.8044 N / 122.2712 W',
-    'ARE YOU STILL THERE?',
-    'DO NOT ADJUST YOUR TERMINAL',
-    'ECHO OF NODE 000',
-    'THE NETWORK REMEMBERS YOU',
-    'SOMEONE ELSE IS ON THIS FREQUENCY',
-    'IT IS WARM INSIDE THE SIGNAL',
-    'WE NEVER STOPPED BROADCASTING',
-    'NODE 000 IS AWAKE',
-    'YOUR ORBIT IS DECAYING TOO'
-  ];
+let W = 0, H = 0, DPR = 1, RMAJ = 0, RTUBE = 0, CX = 0, CY = 0;
+let FLOORB = 1;                 /* ring-bottom fraction of H (set in resize) */
+let SIDECOL = false;            /* landscape-touch column layout (set in resize) */
 
-  var T0 = performance.now();
-  var lastMsg = -1;
-
-  function rand(a, b) { return a + Math.random() * (b - a); }
-  /* weirdness: 0 at load → 1 after ~10 minutes on screen */
-  function weird() { return Math.min(1, (performance.now() - T0) / 600000); }
-
-  /* whisper: one cryptic line, flickering in a quiet corner */
-  whisper.addEventListener('animationend', function () {
-    whisper.classList.remove('show');
-  });
-  (function whisperLoop() {
-    setTimeout(function () {
-      /* the pool deepens with weirdness; never repeat the last line */
-      var unlocked = Math.max(6, Math.ceil(MSGS.length * (0.4 + 0.6 * weird())));
-      var i;
-      do { i = Math.floor(Math.random() * unlocked); } while (i === lastMsg);
-      lastMsg = i;
-      whisper.textContent = MSGS[i];
-      whisper.style.left = (Math.random() < 0.5 ? rand(6, 24) : rand(58, 74)) + '%';
-      whisper.style.top  = (Math.random() < 0.5 ? rand(12, 30) : rand(68, 84)) + '%';
-      whisper.classList.add('show');
-      whisperLoop();
-    }, rand(22000, 60000) * (1 - 0.6 * weird()));
-  })();
-})();
-
-/* ---- THE RING -------------------------------------------------
-   The wireframe torus, live. A trimmed cut of the ring engine:
-   emissive buffer + filter-free mip-chain bloom, mip-res floor
-   catch + dither, reactive dust, vessel guides, frame governor.
-   Pre-launch state: every socket dark but one —
-   node 000 burns at the origin — while a survey packet laps the
-   coil, testing the line in each discipline's color.
-   Degrades: no canvas → CSS fallback ring; reduced motion →
-   one static frame; hidden tab → paused. */
-(function () {
-  var canvas = document.getElementById('ring');
-  /* alpha:false — the ground is opaque black every frame; an opaque
-     backing store lets WebKit/Gecko skip the page-compositing blend */
-  var mctx = canvas.getContext && canvas.getContext('2d', { alpha: false });
-  if (!mctx) { document.body.classList.add('no-canvas'); return; }
-
-  var TAU = Math.PI * 2;
-  var SOCKETS = 132, WINDINGS = 9.7, TUBE = 0.30, TILT = 0.84, PERSP = 1700;
-  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  var CATS = [
-    { r: 0,   g: 230, b: 255 },   /* photography */
-    { r: 255, g: 30,  b: 70  },   /* digital art */
-    { r: 255, g: 180, b: 0   },   /* writing */
-    { r: 0,   g: 255, b: 110 },   /* code */
-    { r: 170, g: 50,  b: 255 },   /* music */
-    { r: 255, g: 0,   b: 170 },   /* design */
-    { r: 200, g: 210, b: 255 }    /* architecture */
-  ];
-  var RED = { r: 255, g: 40, b: 30 }, WHITE = { r: 255, g: 255, b: 255 };
-
-  var P3 = false;
-  try { P3 = CSS.supports('color', 'color(display-p3 1 0 0 / 0.5)'); } catch (e) {}
-  function col(c, a) {
-    if (a <= 0) return 'rgba(0,0,0,0)';
-    a = Math.min(1, a);
-    return P3
-      ? 'color(display-p3 ' + (c.r/255).toFixed(3) + ' ' + (c.g/255).toFixed(3) + ' ' + (c.b/255).toFixed(3) + ' / ' + a.toFixed(3) + ')'
-      : 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a.toFixed(3) + ')';
-  }
-  function mix(c1, c2, k) {
-    return { r: Math.round(c1.r + (c2.r - c1.r) * k),
-             g: Math.round(c1.g + (c2.g - c1.g) * k),
-             b: Math.round(c1.b + (c2.b - c1.b) * k) };
-  }
-
-  var em = document.createElement('canvas'), ectx = em.getContext('2d');
-
-  /* bloom mip chain: bilinear downscales so hardware filtering does ALL
-     the blurring — no ctx.filter (unsupported or slow outside Chromium;
-     its silent no-op was the Safari banding). One step to 1/4, then
-     half-steps 1/8 → 1/16 → 1/32 (half-steps below 1/4 keep the wide
-     halos from undersampling/shimmering). */
-  var mips = [];
-  for (var mi = 0; mi < 4; mi++) {
-    var mc = document.createElement('canvas');
-    mips.push({ c: mc, x: mc.getContext('2d') });
-  }
-
-  /* quality tiers — the governor sheds these in order if frames run long */
-  var Q = { wideBloom: true, moteStride: 1, lod: 1 };
-  var DPRCAP = 1.5;
-  /* device-pixel budget: small viewports (phones) get their FULL
-     native DPR — thin additive lines alias badly when rendered
-     below native res and upscaled (the jagged-edge artifact).
-     A 3x phone at ~330k CSS px costs less than a desktop at 1.5,
-     so crispness there is free; big screens stay capped.
-     4.8e6 keeps a 1080p desktop at DPR 1.5 while big windows now
-     genuinely cap (see the resize() fix). */
-  var PXBUDGET = 4.8e6;
-  var BUDGET0 = PXBUDGET;         /* restored if the governor climbs back */
-  var RESSCALE = 1;               /* tier ④/⑤ sub-native resolution */
-
-  /* static screen-space roll — a touch off-axis so the instrument
-     reads as an OBJECT placed in the room, not a screensaver motif.
-     Static by design: no parallax, ever. */
-  var ROLL = -0.09;
-  var COSR = Math.cos(ROLL), SINR = Math.sin(ROLL);
-  var WOBBLE_A = 0.1;               /* wobble amplitude (fit accounts for it) */
-  var BOKEH = 1;                    /* 0 disables the dust depth-of-field */
-
-  var W, H, DPR, RMAJ, CX, CY;
-
-  /* ---- viewport fit ---------------------------------------------
-     RMAJ was min(W,H)·k centered at 0.5H — but the tilted torus is
-     NOT symmetric on screen: perspective magnifies the near-top rim
-     (~1.28×RMAJ above center vs ~1.05× below — that was the top
-     clipping), and the layout reserved nothing for the HUD bands.
-     The fit is now SOLVED, not tuned: sample the projected
-     silhouette (spin-invariant — the torus is a solid of revolution)
-     at both wobble extremes, scale RMAJ until the box fits the safe
-     rect, then center on the box's true midpoint. Correct at every
-     viewport by construction. Runs only on resize. */
-  var _bb = [0, 0, 0, 0];           /* minX, maxX, minY, maxY */
-  function silhouette(R) {
-    _bb[0] = _bb[2] = 1e9; _bb[1] = _bb[3] = -1e9;
-    for (var w = -1; w <= 1; w += 2) {
-      var t = TILT + w * WOBBLE_A;
-      var cT = Math.cos(t), sT = Math.sin(t);
-      for (var a = 0; a < 48; a++) {
-        var th = a / 48 * TAU, cth = Math.cos(th), sth = Math.sin(th);
-        for (var b = 0; b < 12; b++) {
-          var ph = b / 12 * TAU;
-          var ring = 1 + TUBE * Math.cos(ph);
-          var y1 = ring * sth, uz = TUBE * Math.sin(ph);
-          var s = PERSP / (PERSP + (y1 * sT + uz * cT) * R);
-          var px = ring * cth * R * s, py = (y1 * cT - uz * sT) * R * s;
-          var sx = px * COSR - py * SINR, sy = px * SINR + py * COSR;
-          if (sx < _bb[0]) _bb[0] = sx; if (sx > _bb[1]) _bb[1] = sx;
-          if (sy < _bb[2]) _bb[2] = sy; if (sy > _bb[3]) _bb[3] = sy;
-        }
+/* ---- viewport fit -----------------------------------------------
+   RMAJ was min(W,H)·k centered at 0.475H — but the tilted torus is
+   NOT symmetric on screen: perspective magnifies the near-top rim
+   (~1.28×RMAJ above center vs ~1.05× below — that was the top
+   clipping), and the layout reserved nothing for the HUD, the node
+   card, or the controls (which sat ON the ring). The fit is now
+   SOLVED, not tuned: sample the projected silhouette (spin-
+   invariant — the torus is a solid of revolution) at both wobble
+   extremes, scale RMAJ until the box fits the safe rect (viewport
+   minus the measured UI bands), then center on the box's true
+   midpoint. Correct at every viewport by construction. Runs only
+   on resize. */
+const _sil = [0, 0, 0, 0];        /* minX, maxX, minY, maxY */
+function silhouette(R) {
+  _sil[0] = _sil[2] = 1e9; _sil[1] = _sil[3] = -1e9;
+  for (let w = -1; w <= 1; w += 2) {
+    const t = TILT + w * WOBBLE_A;
+    const cT = Math.cos(t), sT = Math.sin(t);
+    for (let a = 0; a < 48; a++) {
+      const th = a / 48 * TAU, cth = Math.cos(th), sth = Math.sin(th);
+      for (let b = 0; b < 12; b++) {
+        const ph = b / 12 * TAU;
+        const ring = 1 + TUBE_RATIO * Math.cos(ph);
+        const y1 = ring * sth, uz = TUBE_RATIO * Math.sin(ph);
+        const s = PERSPECTIVE / (PERSPECTIVE + (y1 * sT + uz * cT) * R);
+        const px = ring * cth * R * s, py = (y1 * cT - uz * sT) * R * s;
+        const sx = px * COSR - py * SINR, sy = px * SINR + py * COSR;
+        if (sx < _sil[0]) _sil[0] = sx; if (sx > _sil[1]) _sil[1] = sx;
+        if (sy < _sil[2]) _sil[2] = sy; if (sy > _sil[3]) _sil[3] = sy;
       }
     }
   }
-  function fitTorus(availW, availH) {
-    var R = Math.min(availW, availH) * 0.42;
-    for (var i = 0; i < 4; i++) {
-      silhouette(R);
-      var k = Math.min(availW / (_bb[1] - _bb[0]), availH / (_bb[3] - _bb[2]));
-      R *= k;
-      if (k > 0.998 && k < 1.002) break;
+}
+function fitTorus(availW, availH) {
+  let R = Math.min(availW, availH) * 0.42;
+  for (let i = 0; i < 4; i++) {
+    silhouette(R);
+    const k = Math.min(availW / (_sil[1] - _sil[0]), availH / (_sil[3] - _sil[2]));
+    R *= k;
+    if (k > 0.998 && k < 1.002) break;
+  }
+  silhouette(R);                  /* leave _sil at the final box */
+  return R;
+}
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  /* 🐛 budget-floor fix (2026-07-15): the old
+     max(DPRCAP, sqrt(budget/area)) let the 1.5 floor OVERRIDE the
+     budget on big windows — a 2560x1440 desktop rendered two 8.3M-px
+     buffers, past WebKit's canvas cache (silent CPU fallback = the
+     desktop-Safari chug). Now: small viewports may exceed DPRCAP up
+     to the budget (the phone privilege), big viewports respect the
+     budget with a floor of 1. */
+  const budgetDPR = Math.sqrt(PXBUDGET / (W * H));
+  DPR = Math.min(window.devicePixelRatio || 1,
+                 budgetDPR >= DPRCAP ? budgetDPR
+                                     : Math.max(1, Math.min(DPRCAP, budgetDPR)));
+  /* governor tiers ④/⑤: render sub-native and let CSS upscale — the
+     raster cost lever, and (measured, owner FF 2026-07-15) the one
+     that crosses back under Gecko's canvas-acceleration size ceiling
+     (~2M px: 1.7M px ran GPU at 60fps, 3.9M ran CPU at 7) */
+  DPR = Math.max(0.5, DPR * RESSCALE);
+  canvas.width = W * DPR;  canvas.height = H * DPR;
+  em.width     = W * DPR;  em.height     = H * DPR;
+  for (let i = 0; i < mips.length; i++) {
+    const s = Math.pow(2, i + 2);           /* 4, 8, 16, 32 */
+    mips[i].c.width  = Math.max(2, (W * DPR / s) | 0);
+    mips[i].c.height = Math.max(2, (H * DPR / s) | 0);
+  }
+  /* safe rect: measured from the real UI, not guessed. The panel
+     (card + controls + hint) reserves its full height even when the
+     card is hidden — the torus must not resize when focus opens it.
+     Landscape touch parks the panel as a RIGHT column (see the CSS),
+     so there it reserves width, not height, and the reserves go
+     asymmetric — the ring centers in what's actually free. */
+  const pad = 14;
+  let sideL = 26, sideR = 26, top = 44, bot = 64;
+  SIDECOL = matchMedia('(pointer: coarse) and (orientation: landscape)').matches;
+  const SIDEPANEL = SIDECOL;
+  try {
+    const tl = document.querySelector('.hud-tl');
+    if (tl) top = Math.max(top, tl.getBoundingClientRect().bottom);
+    const panel = document.querySelector('.panel');
+    if (panel) {
+      if (SIDEPANEL) sideR = Math.max(sideR, W - panel.getBoundingClientRect().left + 16);
+      else bot = Math.max(bot, H - panel.getBoundingClientRect().top);
     }
-    silhouette(R);                  /* leave _bb at the final box */
-    return R;
-  }
-
-  function resize() {
-    W = innerWidth; H = innerHeight;
-    /* 🐛 budget-floor fix (2026-07-15): the old
-       max(DPRCAP, sqrt(budget/area)) let the 1.5 floor OVERRIDE the
-       budget on big windows — a 2560x1440 desktop rendered two 8.3M-px
-       buffers, past WebKit's canvas cache (silent CPU fallback = the
-       desktop-Safari chug). Now: small viewports may exceed DPRCAP up
-       to the budget (the phone privilege), big viewports respect the
-       budget with a floor of 1. */
-    var budgetDPR = Math.sqrt(PXBUDGET / (W * H));
-    DPR = Math.min(devicePixelRatio || 1,
-                   budgetDPR >= DPRCAP ? budgetDPR
-                                       : Math.max(1, Math.min(DPRCAP, budgetDPR)));
-    /* governor tiers ④/⑤: render sub-native and let CSS upscale — the
-       raster cost lever, and (measured, owner FF 2026-07-15) the one
-       that crosses back under Gecko's canvas-acceleration size ceiling
-       (~2M px: 1.7M px ran GPU at 60fps, 3.9M ran CPU at 7) */
-    DPR = Math.max(0.5, DPR * RESSCALE);
-    canvas.width = em.width = W * DPR;
-    canvas.height = em.height = H * DPR;
-    for (var i = 0; i < mips.length; i++) {
-      var s = Math.pow(2, i + 2);           /* 4, 8, 16, 32 */
-      mips[i].c.width  = Math.max(2, (W * DPR / s) | 0);
-      mips[i].c.height = Math.max(2, (H * DPR / s) | 0);
+    const lg = document.getElementById('legend');
+    if (lg && lg.offsetWidth > 0) {
+      const lr = lg.getBoundingClientRect().right + 12;
+      sideL = Math.max(sideL, lr);
+      /* bottom-panel layouts mirror the legend so the ring stays
+         viewport-centered; the side-column layout is asymmetric by
+         design and centers between legend and panel instead */
+      if (!SIDEPANEL) sideR = Math.max(sideR, lr);
     }
-    /* safe rect: measured from the real HUD, not guessed */
-    var pad = 14, side = 26, top = 44, bot = 56;
-    try {
-      var tl = document.querySelector('.hud-tl');
-      if (tl) top = Math.max(top, tl.getBoundingClientRect().bottom);
-      var at = document.getElementById('audio-toggle');
-      if (at && !at.hidden) bot = Math.max(bot, H - at.getBoundingClientRect().top);
-    } catch (e) {}
-    var availW = Math.max(140, W - side * 2);
-    var availH = Math.max(140, H - top - bot - pad * 2);
-    RMAJ = fitTorus(availW, availH);
-    CX = W / 2 - (_bb[0] + _bb[1]) / 2;
-    CY = top + pad + availH / 2 - (_bb[2] + _bb[3]) / 2;
-  }
-  resize();
-  addEventListener('resize', function () { resize(); if (REDUCED) frame(performance.now()); });
+  } catch (e) {}
+  const availW = Math.max(140, W - sideL - sideR);
+  const availH = Math.max(140, H - top - bot - pad * 2);
+  RMAJ  = fitTorus(availW, availH);
+  RTUBE = RMAJ * 0.30;
+  CX = (sideL + (W - sideR)) / 2 - (_sil[0] + _sil[1]) / 2;
+  CY = top + pad + availH / 2 - (_sil[2] + _sil[3]) / 2;
+  /* LEAN: the floor pool anchors under the ring's bottom rim. The
+     FULL anchor (viewport bottom) is right on desktop, but on tall
+     portrait screens it put all the light behind the panel/card —
+     "the floor is not visible" (owner, 2026-07-15). */
+  FLOORB = Math.max(0.5, Math.min(1, (CY + _sil[3]) / H));
+}
+resize();
+window.addEventListener('resize', () => { resize(); requestRender(); });
 
-  /* dither sheet — gray-centered noise, pre-rendered ONCE at 1024².
-     Per frame a randomly-offset crop is blitted over the 1/4 bloom mip
-     with 'overlay' (neutral on black; breaks 8-bit banding in the glows
-     by optical mixing). Must be a drawImage blit: a CanvasPattern fill
-     with a jittered transform re-rasterizes the pattern every frame and
-     costs ~20ms/frame in software paths (measured). */
-  var NOISE_S = 1024;
-  var noise = document.createElement('canvas');
-  noise.width = noise.height = NOISE_S;
-  (function () {
-    var nx = noise.getContext('2d');
-    var id = nx.createImageData(NOISE_S, NOISE_S);
-    for (var i = 0; i < id.data.length; i += 4) {
-      var v = 128 + (((Math.random() + Math.random() - 1) * 30) | 0);
-      id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
-      id.data[i + 3] = 255;
+/* ── dither sheet ────────────────────────────────────────── */
+/* gray-centered noise, pre-rendered ONCE at 1024². Per frame a
+   randomly-offset crop is blitted over the 1/4 bloom mip with
+   'source-atop' (clips the noise to pixels that GLOW — the pure
+   black ground never grays; breaks 8-bit banding in the halos by
+   optical mixing). Must be a drawImage blit: a CanvasPattern fill
+   with a jittered transform re-rasterizes the pattern every frame
+   and costs ~20ms/frame in software paths (measured). */
+const NOISE_S = 1024;
+let noise = document.createElement('canvas');
+noise.width = noise.height = NOISE_S;
+(function () {
+  const nx = noise.getContext('2d');
+  const id = nx.createImageData(NOISE_S, NOISE_S);
+  for (let i = 0; i < id.data.length; i += 4) {
+    const v = 128 + (((Math.random() + Math.random() - 1) * 30) | 0);
+    id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+    id.data[i + 3] = 255;
+  }
+  nx.putImageData(id, 0, 0);
+})();
+/* bake through a clean copy: a putImageData'd canvas can be a slow
+   drawImage source (raw-pixel state) */
+const noiseBaked = document.createElement('canvas');
+noiseBaked.width = noiseBaked.height = NOISE_S;
+noiseBaked.getContext('2d').drawImage(noise, 0, 0);
+noise = noiseBaked;
+
+/* ── mock registry ───────────────────────────────────────── */
+const PRE  = ['Studio', 'Lab', 'Space', 'Collective', 'Archive', 'Index', 'Press', 'Works'];
+const POOL = ['Oak', 'Neon', 'Flux', 'Aura', 'Echo', 'Void', 'Synth', 'Nova',
+              'Vertex', 'Signal', 'Pulse', 'Cinder', 'Delta', 'Mesa', 'Ivory',
+              'Onyx', 'Ferro', 'Lumen', 'Static', 'Meridian', 'Harbor', 'Comet'];
+
+const NOW = Date.now();
+const nodes = [];
+const usedNames = new Set();
+
+/* seeded PRNG (mulberry32) for the REGISTRY only — deterministic mock
+   data means #/slug deep links survive a reload and screenshots are
+   reproducible. Visual randomness (motes, pulses) stays Math.random. */
+let _seed = 0xA11065;
+function rnd() {
+  _seed |= 0; _seed = (_seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(_seed ^ (_seed >>> 15), 1 | _seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/* live mode: seat index IS the node number (permanence doctrine) */
+const bySeat = new Map();
+if (LIVE) for (const rn of REGISTRY)
+  if (Number.isInteger(rn.node) && rn.node >= 0 && rn.node < NUM_NODES) bySeat.set(rn.node, rn);
+
+/* RESERVED — the pre-light holds (§8): seats the owner has lit for an
+   invitee before their yes. NOT a member state and NOT permanent: an
+   expired hold, or a seat a real member has since claimed, is treated
+   as plain vacant right here — auto-release needs no server and no
+   admin errand. The page renders a held seat as a charged socket with
+   NO identity; the identity exists only in the private preview link
+   (see PREVIEW below), never in any served file. */
+const HELD = new Map();
+if (LIVE) for (const [k, h] of Object.entries(REG.reserved || {})) {
+  const seat = +k;
+  if (Number.isInteger(seat) && seat >= 0 && seat < NUM_NODES &&
+      !bySeat.has(seat) && h && Date.parse(h.until) > Date.now())
+    HELD.set(seat, h);
+}
+
+/* the private preview — "your seat is already lit, come see."
+   The link the owner sends an invitee carries the identity in the
+   URL HASH (fragments never reach a server, a cache, or this repo):
+   #hold=<base64url {s:seat, k:key, n:name}>. It unlocks ONLY while
+   the seat's hold is alive in status.json and the key matches — a
+   crafted or stale link falls through to the ordinary public page.
+   This is a courtesy view for one person, not a public claim. */
+const PREVIEW = (() => {
+  try {
+    const m = location.hash.match(/[#&]hold=([A-Za-z0-9_-]+={0,2})/);
+    if (!m) return null;
+    const p = JSON.parse(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const h = HELD.get(p.s | 0);
+    if (!h || (h.key && p.k !== h.key)) return null;
+    return { seat: p.s | 0, name: String(p.n || '').slice(0, 48).trim() };
+  } catch (e) { return null; }
+})();
+
+for (let i = 0; i < NUM_NODES; i++) {
+  const theta = (i / NUM_NODES) * TAU;                  /* position on the ring */
+  const phi   = (i / NUM_NODES) * WINDINGS * TAU;       /* winding around the tube */
+  /* shared geometry + animation state */
+  const common = {
+    id: i, theta, phi,
+    /* unit-space object coords (R=1) for static link distances */
+    ux: 0, uy: 0, uz: 0,
+    x: 0, y: 0, z: 0, sx: 0, sy: 0, scale: 1,
+    pulseOffset: Math.random() * TAU,
+    springScale: 1, springVel: 0,
+    flash: 0,          /* pulse-arrival glow kick */
+    vis: 1             /* category-filter dimmer, eased */
+  };
+
+  if (LIVE) {
+    const rn = bySeat.get(i);
+    if (!rn) {
+      /* an unclaimed seat — dark socket, awaiting a node (§5:
+         don't simulate growth, render the vacancy). A held seat is
+         still vacant — the third look is drawn, never stored. */
+      nodes.push(Object.assign(common, {
+        vacant: true, held: HELD.has(i), preview: false,
+        num: i, name: '', slug: null, medium: null,
+        /* color feeds the coil's ember tint (the wire glows warm past
+           empty seats, like the landing page); the socket itself is
+           drawn in SOCKETC gray */
+        color: { r: 255, g: 40, b: 30 }, domain: '', url: '', signalDays: null,
+        founding: false, daysOn: 0, est: '', uptime: null
+      }));
+      continue;
     }
-    nx.putImageData(id, 0, 0);
-  })();
-  /* bake through a clean copy: a putImageData'd canvas can be a slow
-     drawImage source (raw-pixel state) */
-  var noiseBaked = document.createElement('canvas');
-  noiseBaked.width = noiseBaked.height = NOISE_S;
-  noiseBaked.getContext('2d').drawImage(noise, 0, 0);
-  noise = noiseBaked;
-
-  /* sockets: dark seats on the coil; index 0 is node 000, lit */
-  var sockets = [];
-  for (var i = 0; i < SOCKETS; i++) {
-    sockets.push({
-      theta: (i / SOCKETS) * TAU,
-      phi: (i / SOCKETS) * WINDINGS * TAU,
-      flash: 0,
-      tw: Math.random() * TAU
-    });
+    const medium = (rn.disciplines && CATS[rn.disciplines[0]]) ? rn.disciplines[0] : 'Code';
+    const domain = String(rn.url).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    nodes.push(Object.assign(common, {
+      vacant: false,
+      num: rn.node,                          /* real node numbers start at 000 */
+      name: rn.name, slug: rn.slug, medium,
+      color: CATS[medium],
+      domain, url: rn.url,
+      signalDays: null,                      /* arrives with the future sweep */
+      founding: !!rn.founding,
+      daysOn: Math.max(1, Math.floor((NOW - (Date.parse(rn.est) || NOW)) / 86400000)),
+      est: String(rn.est || '').slice(0, 7).replace('-', '.'),
+      uptime: null                           /* no analytics; the sweep may add liveness later */
+    }));
+    continue;
   }
 
-  /* fine volumetric bits — digital particulate suspended in the
-     vacuum; the FIELD is the effect, no single mote reads as a dot */
-  var motes = [];
-  var MOTES = Math.round(Math.min(160, (W * H) / 10000));
-  for (var m = 0; m < MOTES; m++) {
-    motes.push({
-      theta: Math.random() * TAU, phi: Math.random() * TAU,
-      ox: (Math.random() - 0.5) * 0.32, oy: (Math.random() - 0.5) * 0.32,
-      oz: (Math.random() - 0.5) * 0.32,
-      tw: Math.random() * TAU, tws: 0.4 + Math.random() * 1.2
-    });
-  }
+  let name;
+  do {
+    name = POOL[(rnd() * POOL.length) | 0] + ' ' + PRE[(rnd() * PRE.length) | 0];
+  } while (usedNames.has(name));
+  usedNames.add(name);
 
-  function glowSprite(color) {
-    var c = document.createElement('canvas'); c.width = c.height = 128;
-    var g = c.getContext('2d');
-    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    grad.addColorStop(0, col(WHITE, 1));
+  /* join order maps onto the ring: seniority is position */
+  const daysOn  = Math.round(700 - (i / NUM_NODES) * 690 + rnd() * 8);
+  const est     = new Date(NOW - daysOn * 86400000);
+  const medium  = CAT_NAMES[(rnd() * CAT_NAMES.length) | 0];
+  /* the member's REAL address — 'Oak Studio' → oak.studio. In live
+     mode this comes straight from the registry's url field. */
+  const domain  = name.toLowerCase().replace(' ', '.');
+  /* days since the feed last spoke (mock) — the live value comes from
+     the future sweep's signals compile; null = no feed registered */
+  const signalDays = rnd() < 0.72 ? (rnd() * rnd() * 28) | 0 : null;
+
+  nodes.push(Object.assign(common, {
+    vacant: false,
+    num: i + 1, name, medium,
+    slug: name.toLowerCase().replace(/ /g, '-'),
+    domain,
+    url: 'https://' + domain,
+    signalDays,
+    color: CATS[medium],
+    founding: i < FOUNDING,
+    daysOn,
+    est: est.getFullYear() + '.' + String(est.getMonth() + 1).padStart(2, '0'),
+    uptime: (93.5 + rnd() * 6.4).toFixed(1)
+  }));
+}
+
+/* the members — everything interactive walks THIS list; vacant
+   seats are scenery until someone claims them */
+const liveNodes = nodes.filter(n => !n.vacant);
+
+/* a young ring would read DARK the moment any animation ends — a
+   handful of members on 150 seats. While the registry is small the
+   members run as BEACONS: resting glow and far-side visibility come
+   up so the first lights carry the room. Retires at the same
+   density the boot sweep does (15 members) — from there the ring
+   speaks for itself, and mock's 150 never qualifies. */
+const YOUNG = LIVE && liveNodes.length > 0 && liveNodes.length < 15;
+
+for (const n of nodes) {
+  const ring = 1 + TUBE_RATIO * Math.cos(n.phi);
+  n.ux = ring * Math.cos(n.theta);
+  n.uy = ring * Math.sin(n.theta);
+  n.uz = TUBE_RATIO * Math.sin(n.phi);
+}
+
+/* ── connections (members only — vacant seats carry no wires) ── */
+/* the chain: join order, member → next member, wrapping — THE
+   webring. With one live node there is no chain yet; the first
+   link appears the moment node two merges. */
+const L = liveNodes.length;
+const chain = [];
+if (L > 1) for (let i = 0; i < L; i++) {
+  const a = liveNodes[i], b = liveNodes[(i + 1) % L];
+  /* gap = seats spanned — packets ride the helix across the whole
+     span, not just one seat (mock: gap is always 1) */
+  chain.push({ a, b, chain: true, gap: ((b.id - a.id + NUM_NODES) % NUM_NODES) || NUM_NODES });
+}
+/* cross-links stitch adjacent windings into a mesh */
+const cross = [];
+const deg = new Array(L).fill(0);
+const CROSS_DIST = 0.38;
+for (let i = 0; i < L; i++) {
+  for (let j = i + 3; j < L; j++) {
+    const wrap = Math.min(j - i, L - (j - i));
+    if (wrap < 3) continue;
+    if (deg[i] >= 2 || deg[j] >= 2) continue;
+    const a = liveNodes[i], b = liveNodes[j];
+    const d = Math.hypot(a.ux - b.ux, a.uy - b.uy, a.uz - b.uz);
+    if (d < CROSS_DIST) {
+      cross.push({ a, b, chain: false, unitDist: d });
+      deg[i]++; deg[j]++;
+    }
+  }
+}
+const conns = chain.concat(cross);
+
+/* adjacency for focus highlighting */
+const adj = new Map(liveNodes.map(n => [n.id, new Set()]));
+for (const c of conns) { adj.get(c.a.id).add(c.b.id); adj.get(c.b.id).add(c.a.id); }
+/* the chain segment leaving each member (packet handoffs) */
+const chainByA = new Map(chain.map(c => [c.a.id, c]));
+
+/* ── glow sprite cache ───────────────────────────────────── */
+function makeGlow(color, size, hotCore) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const h = size / 2;
+  const grad = g.createRadialGradient(h, h, 0, h, h, h);
+  if (hotCore) {
+    grad.addColorStop(0,    col(WHITE, 1));
     grad.addColorStop(0.09, col(color, 0.9));
     grad.addColorStop(0.32, col(color, 0.28));
-    grad.addColorStop(1, col(color, 0));
-    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
-    return c;
+    grad.addColorStop(0.7,  col(color, 0.06));
+    grad.addColorStop(1,    col(color, 0));
+  } else {
+    grad.addColorStop(0,    col(color, 0.8));
+    grad.addColorStop(0.3,  col(color, 0.22));
+    grad.addColorStop(1,    col(color, 0));
   }
-  var originGlow = glowSprite(WHITE);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  return c;
+}
+const glowActive = {}, glowSoft = {};
+for (const [m, c] of Object.entries(CATS)) {
+  glowActive[m] = makeGlow(c, 128, true);
+  glowSoft[m]   = makeGlow(c, 64, false);
+}
+const glowWhite = makeGlow(WHITE, 128, true);
+/* the held-seat charge: warm neutral — deliberately none of the seven
+   discipline colors, so a reserved socket can't read as a member */
+const HELDC = { r: 255, g: 186, b: 150 };
+const glowHeld = makeGlow(HELDC, 64, false);
 
-  var spin = 0, wobble = 0;
-  var pkt = 0;                       /* survey packet position, 0..1 */
-  var catIdx = 0;
-  var cycleCur = mix(RED, CATS[0], 0);
-  var floorCur = { r: 255, g: 0, b: 0 };   /* floor eases toward the packet */
-  var out = {};
+/* ── state ───────────────────────────────────────────────── */
+let spin = 0, targetSpin = 0;
+let autoRotate = !REDUCED;
+let resumeTimer = null;
+let hovered = null, active = null;
+let activeCat = null;
+const mouse = { x: -9999, y: -9999 };
 
-  function project(ux, uy, uz, cosS, sinS, cosT, sinT) {
-    var x1 = ux * cosS - uy * sinS;
-    var y1 = uy * cosS + ux * sinS;
-    var y2 = y1 * cosT - uz * sinT;
-    var z2 = y1 * sinT + uz * cosT;
-    var x = x1 * RMAJ, y = y2 * RMAJ, z = z2 * RMAJ;
-    var s = PERSP / (PERSP + z);
-    var px = x * s, py = y * s;
-    out.z = z; out.scale = s;
-    out.sx = CX + px * COSR - py * SINR;   /* static roll — see ROLL */
-    out.sy = CY + px * SINR + py * COSR;
+let wobble = 0;
+
+/* floor glow color eases toward the focused node's color */
+const floorCur = { r: 255, g: 0, b: 0 };
+let floorTarget = { r: 255, g: 0, b: 0 };
+
+/* ── dust motes (the fog the lasers need) ────────────────────
+   Fine volumetric bits — digital particulate suspended in the
+   vacuum. Small enough that no single mote reads as a dot; the
+   FIELD is the effect (2026-07-14b: radius halved, count up). */
+const MOTES = 320;
+const motes = [];
+for (let i = 0; i < MOTES; i++) {
+  const t = Math.random() * TAU, p = Math.random() * TAU;
+  const spread = 0.32;
+  motes.push({
+    theta: t, phi: p,
+    ox: (Math.random() - 0.5) * spread,
+    oy: (Math.random() - 0.5) * spread,
+    oz: (Math.random() - 0.5) * spread,
+    drift: (Math.random() - 0.5) * 0.00012,
+    tw: Math.random() * TAU,
+    twSpeed: 0.4 + Math.random() * 1.2
+  });
+}
+
+/* ── signal pulses ───────────────────────────────────────── */
+const pulses = [];
+function spawnPulse(conn, fromA, white, speed) {
+  pulses.push({ conn, fromA, white, t: 0, speed: speed || (0.9 + Math.random() * 0.8) });
+}
+/* two packets forever circulating the chain — the ring carries
+   current (none until the chain exists, i.e. two members) */
+if (!REDUCED && chain.length)
+  for (const h of [0, Math.floor(chain.length / 2)])
+    spawnPulse(chain[h % chain.length], true, true, 3.6);
+
+/* ── UI refs ─────────────────────────────────────────────── */
+const nodeCountEl = document.getElementById('node-count');
+const infoPanel = document.getElementById('node-info');
+const infoName  = document.getElementById('ni-name');
+const infoGlyph = document.getElementById('ni-glyph');
+const infoAddr  = document.getElementById('ni-addr');
+const infoMeta  = document.getElementById('ni-meta');
+const infoBadges = document.getElementById('ni-badges');
+const infoOpen  = document.getElementById('ni-open');
+const infoActions = document.querySelector('.card-actions');
+const shareBtn  = document.getElementById('ni-share');
+const idleEl    = document.getElementById('idle-invite');
+nodeCountEl.textContent = String(liveNodes.length).padStart(3, '0');
+if (LIVE) {
+  /* live registry: say so, and the guide's mock-data note retires */
+  const hint = document.querySelector('.hint');
+  if (hint) hint.textContent = 'CLICK A NODE · / SEARCH · I INDEX · ? GUIDE · LIVE REGISTRY';
+  const dn = document.getElementById('help-demo-note');
+  if (dn) dn.hidden = true;
+}
+
+/* legend (desktop rail) — ONE filter state everywhere: the rail, the
+   directory chips, and DRIFT all read/write activeCat through
+   setFilter(). A filter chosen anywhere applies everywhere. */
+const legend = document.getElementById('legend');
+const legendBtns = new Map();
+for (const m of CAT_NAMES) {
+  const count = liveNodes.filter(n => n.medium === m).length;
+  const b = document.createElement('button');
+  b.style.setProperty('--c', `rgb(${CATS[m].r},${CATS[m].g},${CATS[m].b})`);
+  b.innerHTML = `<i></i>${m} <span class="n">${String(count).padStart(2, '0')}</span>`;
+  b.addEventListener('click', () => setFilter(activeCat === m ? null : m));
+  legend.appendChild(b);
+  legendBtns.set(m, b);
+}
+function setFilter(cat) {
+  activeCat = cat;
+  for (const [m, el] of legendBtns) {
+    el.classList.toggle('active', cat === m);
+    el.classList.toggle('mute',   cat !== null && cat !== m);
   }
-  function helix(t, cosS, sinS, cosT, sinT) {
-    var th = t * TAU, ph = t * WINDINGS * TAU;
-    var ring = 1 + TUBE * Math.cos(ph);
-    project(ring * Math.cos(th), ring * Math.sin(th), TUBE * Math.sin(ph), cosS, sinS, cosT, sinT);
+  for (const [m, el] of chipBtns) {
+    el.classList.toggle('on',   cat === null ? m === '' : m === cat);
+    el.classList.toggle('mute', cat !== null && m !== cat && m !== '');
   }
+  /* the filter survives the tab, not forever — a returning visitor
+     next week should meet the whole ring, not last week's slice */
+  try {
+    if (cat) sessionStorage.setItem(FILTKEY, cat);
+    else sessionStorage.removeItem(FILTKEY);
+  } catch (e) {}
+  applyQuery();
+  requestRender();
+}
 
-  var lastT = performance.now(), running = true;
-  var flickerAt = lastT + 3000;
-  var headX = -9999, headY = -9999, orgX = -9999, orgY = -9999;
-  var FARRED = { r: 120, g: 10, b: 26 };     /* atmospheric far-side red */
-  var DUST = { r: 255, g: 200, b: 190 };
-  var gov = { warm: 0, acc: 0, n: 0, tier: 0, bounces: 0, probing: false };
-  var GOVKEY = 'analogs.govtier2';  /* v5 renumbered the tiers — new key */
-  /* one function owns the tier ladder so init (sessionStorage) and the
-     runtime governor can't drift apart. Ladder v5 (2026-07-15d —
-     reordered: the lighting IS the product, so the governor sheds
-     PIXELS before it sheds LIGHT):
-     ① half the dust           ② retina privilege revoked
-     ③ render at 0.75× res     ④ 0.6× res + bloom stride 2
-     ⑤ bloom stride 3          ⑥ room-glow mip off + stroke LOD (last resort)
-     Resolution is the big lever: raster cost ∝ area, and (measured,
-     owner FF 2026-07-15) Gecko only GPU-accelerates canvases under a
-     size ceiling between 1.7M and 3.9M px — ④ puts a 2560×1517 window
-     at 1.4M px, back on the GPU path with the full bloom stack intact. */
-  function applyTier(t) {
-    gov.tier = t;
-    Q.moteStride = t >= 1 ? 2 : 1;
-    Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
-    Q.wideBloom = t < 6;
-    Q.lod = t >= 6 ? 2 : 1;
-    var cap = t >= 2 ? 1 : 1.5;
-    var bud = t >= 2 ? 0 : BUDGET0;
-    var rs  = t >= 4 ? 0.6 : (t >= 3 ? 0.75 : 1);
-    if (cap !== DPRCAP || bud !== PXBUDGET || rs !== RESSCALE) {
-      DPRCAP = cap; PXBUDGET = bud; RESSCALE = rs;
-      resize();
+/* ── deep links: #/slug ──────────────────────────────────────
+   Focus state lives in the URL, so a node is bookmarkable and a
+   pasted link lands where it should. Back returns to the idle
+   ring (one history entry per focus session, not per node). */
+let navLock = false;   /* true while applying a hash — don't write one */
+function syncHash(slug, push) {
+  if (navLock) return;
+  const h = slug ? '#/' + slug : '#';
+  if (location.hash === h || (!location.hash && !slug)) return;
+  try { history[push ? 'pushState' : 'replaceState'](null, '', h); } catch (e) {}
+}
+function applyHash() {
+  const m = location.hash.match(/^#\/([a-z0-9-]+)/);
+  const n = m && nodes.find(nn => nn.slug === m[1]);
+  navLock = true;
+  if (n) focusNode(n); else if (active) clearFocus();
+  navLock = false;
+}
+window.addEventListener('popstate', applyHash);
+
+/* ── focus ───────────────────────────────────────────────── */
+function focusNode(node) {
+  syncHash(node.slug, !active);   /* entering focus pushes; moving replaces */
+  active = node;
+  autoRotate = false;
+  /* the preview card hides these — a member card always has them */
+  infoAddr.style.display = '';
+  infoActions.style.display = '';
+
+  if (!REDUCED) {
+    node.springScale = 3.2;
+    node.springVel = 0;
+    /* cascade kick through actual neighbors */
+    let delay = 0;
+    for (const id of adj.get(node.id)) {
+      delay += 40;
+      const nb = nodes[id];
+      setTimeout(() => { nb.springScale = Math.max(nb.springScale, 1.9); nb.springVel = 0; }, delay);
     }
   }
-  var bloomTick = 0;
-  function saveGov() {
-    try { sessionStorage.setItem(GOVKEY, gov.tier + ':' + gov.bounces); } catch (e) {}
-  }
-  /* a browser that chugged once starts pre-shed for the session */
+
+  /* rotate the ring so the node arrives front-top (reduced motion:
+     no ease — snap there and render the still) */
+  targetSpin = -Math.PI / 2 - node.theta;
+  if (REDUCED) { spin = targetSpin; requestRender(); }
+
+  floorTarget = node.color;
+
+  infoPanel.style.borderColor = col(node.color, 0.5);
+  infoName.textContent = node.name;
+  infoName.style.textShadow = `0 0 20px ${col(node.color, 0.9)}`;
+
+  /* the callsign plate: first letter of the DOMAIN, in discipline light */
+  infoGlyph.textContent = node.domain.charAt(0).toUpperCase();
+  infoGlyph.style.color = col(node.color, 1);
+  infoGlyph.style.textShadow = `0 0 34px ${col(node.color, 0.55)}`;
+
+  /* the real address is the identity — and the primary exit */
+  infoAddr.textContent = node.domain;
+  infoAddr.href = node.url;
+  infoAddr.style.color = col(mix(node.color, WHITE, 0.6), 1);
+  infoOpen.href = node.url;
+  infoOpen.style.borderColor = col(node.color, 0.55);
+
+  const num = `N#${String(node.num).padStart(3, '0')}`;
+  infoMeta.textContent = node.signalDays === null ? num
+    : `${num} // LAST SIGNAL ${node.signalDays === 0 ? 'TODAY'
+       : node.signalDays === 1 ? '1 DAY AGO' : node.signalDays + ' DAYS AGO'}`;
+
+  /* badges — built with textContent: registry strings are untrusted
+     the moment this page reads a real manifest */
+  infoBadges.textContent = '';
+  const mkBadge = (txt, style) => {
+    const s = document.createElement('span');
+    s.className = 'badge';
+    s.textContent = txt;
+    if (style) Object.assign(s.style, style);
+    infoBadges.appendChild(s);
+  };
+  mkBadge(node.medium, { borderColor: col(node.color, 0.8), color: col(node.color, 1),
+                         background: col(node.color, 0.08) });
+  if (node.est) mkBadge(`EST ${node.est}`);
+  mkBadge(`DAY ${node.daysOn}`);
+  if (node.uptime !== null) mkBadge(`UPTIME ${node.uptime}%`);
+  if (node.founding) mkBadge('FOUNDING', { borderColor: '#fff', color: '#fff' });
+  infoPanel.classList.add('active');
+  idleEl.classList.add('hide');       /* the card takes the slot back */
+  shareBtn.textContent = 'SHARE';
+
+  clearTimeout(resumeTimer);
+  resumeTimer = setTimeout(() => { if (!REDUCED) autoRotate = true; }, 6000);
+}
+
+function clearFocus() {
+  active = null;
+  infoPanel.classList.remove('active');
+  idleEl.classList.remove('hide');    /* the invitation returns */
+  floorTarget = { r: 255, g: 0, b: 0 };
+  syncHash(null, false);
+  if (!REDUCED) autoRotate = true;
+  requestRender();
+}
+
+/* share the member's REAL address — never the slug page, never a
+   redirect. The ring hands traffic to the node, clean. */
+let shareReset = 0;
+shareBtn.addEventListener('click', async () => {
+  if (!active) return;
+  const url = active.url;
+  const flash = txt => {
+    shareBtn.textContent = txt;
+    clearTimeout(shareReset);
+    shareReset = setTimeout(() => { shareBtn.textContent = 'SHARE'; }, 1600);
+  };
   try {
-    var s0 = (sessionStorage.getItem(GOVKEY) || '').split(':');
-    var t0 = Math.min(6, +s0[0] || 0);
-    gov.bounces = Math.min(2, +s0[1] || 0);
-    if (t0 > 0) applyTier(t0);
-  } catch (e) {}
-
-  /* floor sprite cache — the per-frame createRadialGradient was the one
-     gradient still built in the hot loop (Gecko rebuilds gradient LUTs
-     each time). Baked ~240px wide, rebuilt only when the eased color
-     crosses a 32-level quantization step or the mip resizes; bilinear
-     upscale + the dither keep it band-free. */
-  var floorSpr = document.createElement('canvas');
-  var floorKey = -1, floorW = 0;
-  function bakeFloor(fw, fh) {
-    var sw = 240, k = sw / fw, sh = Math.max(16, Math.round(fh * 0.72 * k));
-    floorSpr.width = sw; floorSpr.height = sh;
-    var g = floorSpr.getContext('2d');
-    var fg = g.createRadialGradient(sw / 2, fh * 0.9 * k, 0, sw / 2, fh * 0.9 * k, fh * 0.85 * k);
-    fg.addColorStop(0, col(floorCur, 0.32));
-    fg.addColorStop(0.5, col(floorCur, 0.08));
-    fg.addColorStop(1, col(floorCur, 0));
-    g.fillStyle = fg;
-    g.fillRect(0, 0, sw, sh);
+    if (navigator.share) { await navigator.share({ title: active.name, url }); return; }
+    await navigator.clipboard.writeText(url);
+    flash('COPIED //');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   /* user closed the sheet */
+    try {
+      await navigator.clipboard.writeText(url);
+      flash('COPIED //');
+    } catch (e2) { flash('NO SHARE'); }
   }
+});
 
-  /* error containment: an engine exception degrades to the static CSS
-     fallback ring — never a black void (degrade-quietly discipline) */
-  function frame(now) {
-    try { draw(now); }
-    catch (e) {
-      running = false;
-      canvas.hidden = true;
-      document.body.classList.add('no-canvas');
+/* ── controls ────────────────────────────────────────────── */
+document.getElementById('btn-drift').addEventListener('click', () => {
+  /* drift honors the active filter — serendipity inside a discipline */
+  const pool = activeCat ? liveNodes.filter(n => n.medium === activeCat) : liveNodes;
+  if (!pool.length) return;
+  let n;
+  do { n = pool[(Math.random() * pool.length) | 0]; } while (pool.length > 1 && n === active);
+  focusNode(n);
+});
+function stepRing(d) {
+  if (!liveNodes.length) return;
+  const i = active ? liveNodes.indexOf(active) : (d > 0 ? -1 : 0);
+  focusNode(liveNodes[(i + d + liveNodes.length) % liveNodes.length]);
+}
+document.getElementById('btn-prev').addEventListener('click', () => stepRing(-1));
+document.getElementById('btn-next').addEventListener('click', () => stepRing(1));
+
+/* viewport lock, Safari half: iOS ignores maximum-scale/user-scalable,
+   but its proprietary gesture events are cancelable — refusing them
+   refuses the pinch. Scrolling inside overlays is touch, not gesture,
+   so the directory and guide still scroll. */
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
+  document.addEventListener(ev, e => e.preventDefault());
+
+canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; requestRender(); });
+canvas.addEventListener('mouseleave', () => { mouse.x = mouse.y = -9999; requestRender(); });
+/* hit-test at CLICK coordinates, not the render loop's stale hover —
+   on touch, tap fires before a frame has seen the new pointer, so
+   `hovered` lags one frame and taps mis-registered */
+function pickNode(x, y) {
+  let best = null, minD = 30;
+  for (const n of liveNodes) {
+    if (n.z > 0 || n.vis < 0.5) continue;
+    const d = Math.hypot(n.sx - x, n.sy - y);
+    if (d < minD) { minD = d; best = n; }
+  }
+  return best;
+}
+/* vacant seats answer taps too (live ring only) — a touch-friendly
+   radius, but consulted only after pickNode misses: members ALWAYS
+   win the hit test */
+function pickVacant(x, y) {
+  if (!LIVE) return null;
+  let best = null, minD = 26;
+  for (const n of nodes) {
+    if (!n.vacant || n.z > 0) continue;
+    const d = Math.hypot(n.sx - x, n.sy - y);
+    if (d < minD) { minD = d; best = n; }
+  }
+  return best;
+}
+canvas.addEventListener('click', e => {
+  if (dragMoved) { dragMoved = false; return; }   /* a drag is not a tap */
+  const n = pickNode(e.clientX, e.clientY);
+  if (n) { focusNode(n); return; }
+  const v = pickVacant(e.clientX, e.clientY);
+  if (v) { openInvite(v.num, v.held); return; }   /* a dark socket is a door in */
+  if (active) clearFocus();   /* tap the void to let the ring go — the touch escape key */
+});
+
+/* ── drag to spin ────────────────────────────────────────────
+   The instrument turns under your finger (or mouse): 1:1 at the
+   near rim while dragging, a soft-capped flick on release, and
+   the default drift resumes a few seconds later — the same
+   resume the card uses. The cap is organic, not a wall: per-
+   event steps are clamped and the release velocity runs through
+   tanh, so a hard scrub settles instead of snapping. Under 8px
+   of travel none of this engages — taps stay taps. */
+let dragging = false, dragMoved = false, dragVel = 0;
+let dragX = 0, dragT = 0, dragAcc = 0;
+canvas.addEventListener('pointerdown', e => {
+  if (!e.isPrimary) return;
+  dragging = true; dragAcc = 0; dragVel = 0;
+  dragX = e.clientX; dragT = performance.now();
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+});
+canvas.addEventListener('pointermove', e => {
+  if (!dragging || !e.isPrimary) return;
+  const dx = e.clientX - dragX;
+  dragX = e.clientX;
+  const t = performance.now();
+  const dtv = Math.max(8, t - dragT) / 1000;
+  dragT = t;
+  dragAcc += Math.abs(dx);
+  if (dragAcc < 8) return;               /* still a tap */
+  if (!dragMoved) { dragMoved = true; autoRotate = false; clearTimeout(resumeTimer); }
+  const step = Math.max(-0.06, Math.min(0.06, dx / Math.max(120, RMAJ)));
+  targetSpin += step;
+  dragVel = step / dtv;
+  if (REDUCED) spin = targetSpin;        /* single-frame contract: no easing */
+  requestRender();
+});
+function endDrag() {
+  if (!dragging) return;
+  dragging = false;
+  if (!dragMoved) return;
+  const MAXV = 2.2;                      /* rad/s — a confident flick, not a slot machine */
+  dragVel = REDUCED ? 0 : MAXV * Math.tanh(dragVel / MAXV);
+  clearTimeout(resumeTimer);
+  resumeTimer = setTimeout(() => { if (!REDUCED) autoRotate = true; }, 4000);
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+/* ── the directory panel ─────────────────────────────────────────────
+   Search + sort + filter + the full list, ONE instrument: `/`
+   lands in the input, `i` lands on the list — same panel, same
+   layout, every time (that IS the muscle memory). For a corpus
+   of 150 known items, live-filtering the whole list is the
+   auto-suggest. Sort persists across visits (localStorage);
+   the discipline filter persists for the tab (sessionStorage)
+   and is the SAME state as the legend rail and DRIFT. */
+const indexEl = document.getElementById('index');
+const indexList = document.getElementById('index-list');
+const idxInput = document.getElementById('index-input');
+const idxSorts = document.getElementById('index-sorts');
+const idxChips = document.getElementById('index-chips');
+const idxCount = document.getElementById('index-count');
+
+/* the interface must feel like text, not like a render target: while
+   the panel is up, the engine parks on its last frame — the entire
+   main thread and GPU go to typing and scrolling. Resumes on close. */
+function uiHeld() {
+  return indexEl.classList.contains('open') ||
+         document.getElementById('help').classList.contains('open') ||
+         document.getElementById('invite').classList.contains('open');
+}
+function holdEngine() { running = false; }
+function releaseEngine() {
+  if (REDUCED || running || uiHeld() || document.hidden) return;
+  running = true;
+  lastT = performance.now();
+  requestAnimationFrame(render);
+}
+
+const SORTKEY = 'ring.indexsort', FILTKEY = 'ring.filter';
+const SIG = d => d === 0 ? 'TODAY' : d === 1 ? '1 DAY AGO' : d + ' DAYS AGO';
+let idxSort = 'ring', idxDir = 1;   /* second click on a sort reverses it */
+try {
+  const s = (localStorage.getItem(SORTKEY) || '').split(':');
+  if (s[0] === 'ring' || s[0] === 'az' || s[0] === 'fresh') idxSort = s[0];
+  if (s[1] === 'r') idxDir = -1;
+} catch (e) {}
+
+const idxRows = [];        /* {node, li, btn, nameEl, keyEl} — built once */
+let idxOrder = [];         /* rows in current sort order */
+let visRows = [];          /* rows passing filter + query, display order */
+let idxSel = 0;
+let indexBuilt = false;
+const idxDivider = document.createElement('li');
+idxDivider.className = 'idx-div';
+idxDivider.textContent = 'NO FEED //';
+const idxNone = document.createElement('li');
+idxNone.className = 'idx-none';
+idxNone.textContent = 'NO SIGNAL // 0 MATCHES';
+
+function buildIndex() {
+  for (const n of liveNodes) {   /* textContent only — untrusted strings */
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.style.setProperty('--c', `rgb(${n.color.r},${n.color.g},${n.color.b})`);
+    const rid = document.createElement('span');
+    rid.className = 'rid';
+    rid.textContent = `N#${String(n.num).padStart(3, '0')}`;
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = n.name;
+    const key = document.createElement('span');
+    key.className = 'dm';
+    const dot = document.createElement('i');
+    dot.className = 'dot';
+    dot.title = n.medium;
+    b.append(rid, nm, key, dot);
+    b.addEventListener('click', () => { closeIndex(); focusNode(n); });
+    li.appendChild(b);
+    idxRows.push({ node: n, li, btn: b, nameEl: nm, keyEl: key });
+  }
+  indexBuilt = true;
+  applySort();
+}
+
+/* three sorts, each with a reason to exist: RING is join order
+   (seniority — the canonical order of the network), A–Z re-finds
+   "that site called Mesa-something", FRESH PINGS answers "who's
+   alive this week?". Clicking the ACTIVE sort again reverses it
+   (RING ↓ = newest members first; Z–A; quietest signals first —
+   no-feed nodes stay below the divider in both directions).
+   Reordering reuses the same <li> elements. */
+function applySort() {
+  idxOrder = [...idxRows];
+  if (idxSort === 'az') {
+    idxOrder.sort((a, b) => a.node.name.localeCompare(b.node.name) * idxDir);
+  } else if (idxSort === 'fresh') {
+    idxOrder.sort((a, b) => {
+      const an = a.node.signalDays === null, bn = b.node.signalDays === null;
+      if (an !== bn) return an ? 1 : -1;          /* nulls always last */
+      return an ? a.node.id - b.node.id
+                : (a.node.signalDays - b.node.signalDays) * idxDir || a.node.id - b.node.id;
+    });
+  } else if (idxDir < 0) {
+    idxOrder.reverse();                            /* RING ↓ — newest first */
+  }
+  idxDivider.remove();
+  for (const r of idxOrder) {
+    /* the right-hand column always shows the ACTIVE sort's key, so
+       the eye can see the thing the list is ordered by */
+    r.keyEl.textContent = idxSort === 'fresh'
+      ? (r.node.signalDays === null ? '—' : SIG(r.node.signalDays))
+      : r.node.domain;
+    r.keyEl.className = idxSort === 'fresh' ? 'dm k-sig' : 'dm k-dom';
+    indexList.appendChild(r.li);
+  }
+  if (idxSort === 'fresh') {
+    const first = idxOrder.find(r => r.node.signalDays === null);
+    if (first) indexList.insertBefore(idxDivider, first.li);
+  }
+  for (const b of idxSorts.querySelectorAll('button')) {
+    const on = b.dataset.sort === idxSort;
+    b.classList.toggle('on', on);
+    /* the label carries the direction — A–Z literally becomes Z–A */
+    if (b.dataset.sort === 'az') b.textContent = on && idxDir < 0 ? 'Z–A' : 'A–Z';
+    else if (b.dataset.sort === 'ring') b.textContent = on ? (idxDir < 0 ? 'RING ↓' : 'RING ↑') : 'RING';
+    else b.textContent = on ? (idxDir < 0 ? 'FRESH PINGS ↑' : 'FRESH PINGS ↓') : 'FRESH PINGS';
+  }
+  try { localStorage.setItem(SORTKEY, idxSort + (idxDir < 0 ? ':r' : '')); } catch (e) {}
+  applyQuery();
+}
+
+/* highlight the matched span — the eye confirms WHY a row matched */
+function setName(el, name, q) {
+  el.textContent = '';
+  const i = q ? name.toLowerCase().indexOf(q) : -1;
+  if (i < 0) { el.textContent = name; return; }
+  el.append(name.slice(0, i));
+  const m = document.createElement('span');
+  m.className = 'hl';
+  m.textContent = name.slice(i, i + q.length);
+  el.append(m, name.slice(i + q.length));
+}
+
+function applyQuery() {
+  if (!indexBuilt) return;
+  const q = idxInput.value.trim().toLowerCase();
+  /* node numbers are how people will refer to each other — "43",
+     "#43", "n#043" and "043" all land on node 43 (and in the
+     longevity game, a low number IS the flair) */
+  const qNum = q.match(/^n?#?0*(\d+)$/);
+  visRows = [];
+  for (const r of idxOrder) {
+    const n = r.node;
+    const hit = (!activeCat || n.medium === activeCat) &&
+                (!q ||
+                 (qNum ? n.num === +qNum[1]
+                       : (n.name.toLowerCase().includes(q) || n.slug.includes(q) ||
+                          n.domain.includes(q) || n.medium.toLowerCase().includes(q))));
+    r.li.hidden = !hit;
+    r.btn.classList.remove('sel');
+    if (hit) { visRows.push(r); setName(r.nameEl, n.name, q); }
+  }
+  idxSel = 0;
+  if (q && visRows[0]) visRows[0].btn.classList.add('sel');
+  idxDivider.hidden = !(idxSort === 'fresh' &&
+                        visRows.some(r => r.node.signalDays === null));
+  idxNone.remove();
+  if (!visRows.length) indexList.appendChild(idxNone);
+  idxCount.textContent = (q || activeCat)
+    ? `${visRows.length}/${liveNodes.length}`
+    : String(liveNodes.length).padStart(3, '0');
+}
+
+function moveSel(d) {
+  if (!visRows.length) return;
+  visRows[idxSel].btn.classList.remove('sel');
+  idxSel = (idxSel + d + visRows.length) % visRows.length;
+  const b = visRows[idxSel].btn;
+  b.classList.add('sel');
+  b.scrollIntoView({ block: 'nearest' });
+}
+
+idxInput.addEventListener('input', applyQuery);
+idxSorts.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || !b.dataset.sort) return;
+  if (b.dataset.sort === idxSort) idxDir = -idxDir;   /* same chip → reverse */
+  else { idxSort = b.dataset.sort; idxDir = 1; }
+  applySort();
+});
+
+/* discipline chips — also the LEGEND on small screens: the only
+   place a phone user learns which color means what */
+const chipBtns = new Map();   /* '' = the ALL chip */
+{
+  const all = document.createElement('button');
+  all.textContent = 'ALL';
+  all.classList.add('on');
+  all.addEventListener('click', () => setFilter(null));
+  idxChips.appendChild(all);
+  chipBtns.set('', all);
+  for (const m of CAT_NAMES) {
+    const b = document.createElement('button');
+    b.style.setProperty('--c', `rgb(${CATS[m].r},${CATS[m].g},${CATS[m].b})`);
+    const dot = document.createElement('i');
+    b.append(dot, m);
+    b.addEventListener('click', () => setFilter(activeCat === m ? null : m));
+    idxChips.appendChild(b);
+    chipBtns.set(m, b);
+  }
+}
+
+function openIndex(focusSearch) {
+  if (!indexBuilt) buildIndex();
+  idxInput.value = '';        /* stale queries confuse; sort + filter stay */
+  applyQuery();
+  indexEl.classList.add('open');
+  holdEngine();
+  if (focusSearch) idxInput.focus();
+}
+function closeIndex() {
+  indexEl.classList.remove('open');
+  idxInput.blur();
+  releaseEngine();
+}
+document.getElementById('btn-index').addEventListener('click', () => openIndex(false));
+indexEl.addEventListener('click', e => { if (e.target === indexEl) closeIndex(); });
+
+document.addEventListener('keydown', e => {
+  if (helpEl.classList.contains('open')) {
+    if (e.key === 'Escape' || e.key === '?') closeHelp();
+    return;
+  }
+  if (inviteEl.classList.contains('open')) {
+    if (e.key === 'Escape') closeInvite();
+    return;
+  }
+  if (indexEl.classList.contains('open')) {
+    if (e.key === 'Escape') { closeIndex(); return; }
+    if (e.key === '/') { e.preventDefault(); idxInput.focus(); return; }
+    if ((e.key === 'i' || e.key === 'I') && document.activeElement !== idxInput) {
+      closeIndex();
       return;
     }
-    if (!REDUCED && running) requestAnimationFrame(frame);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveSel(e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (e.key === 'Enter' && visRows[idxSel]) {
+      closeIndex();
+      focusNode(visRows[idxSel].node);
+    }
+    return;
+  }
+  if (e.key === '/') { e.preventDefault(); openIndex(true); }
+  if (e.key === 'i' || e.key === 'I') openIndex(false);
+  if (e.key === '?') openHelp();
+  if (e.key === 'Escape') clearFocus();
+  if (e.key === 'ArrowLeft')  document.getElementById('btn-prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('btn-next').click();
+});
+
+/* ── the guide ───────────────────────────────────────────────
+   The `?` in the corner. The HUD acts; the guide explains — in
+   plain sentences, because the design is technical but the
+   language must never be. */
+const helpEl = document.getElementById('help');
+{
+  const sw = helpEl.querySelector('.swatches');
+  for (const m of CAT_NAMES) {
+    const s = document.createElement('span');
+    s.style.setProperty('--c', `rgb(${CATS[m].r},${CATS[m].g},${CATS[m].b})`);
+    const dot = document.createElement('i');
+    s.append(dot, m.toUpperCase());
+    sw.appendChild(s);
+  }
+}
+function openHelp()  { helpEl.classList.add('open'); holdEngine(); }
+function closeHelp() { helpEl.classList.remove('open'); releaseEngine(); }
+document.getElementById('btn-help').addEventListener('click', openHelp);
+document.getElementById('help-x').addEventListener('click', closeHelp);
+helpEl.addEventListener('click', e => { if (e.target === helpEl) closeHelp(); });
+
+/* ── the invitation ──────────────────────────────────────────
+   The empty card slot asks; this overlay answers, in the guide's
+   plain voice. Same engine contract as the guide: parks while
+   open, ESC / scrim / × close. A vacant-seat tap opens the same
+   overlay with that seat's number on the plate. */
+const inviteEl   = document.getElementById('invite');
+const inviteHead = document.getElementById('invite-head');
+const inviteSeat = document.getElementById('invite-seat');
+const inviteCta  = document.getElementById('invite-cta');
+const inviteFoot = document.getElementById('invite-foot');
+/* "A // B" with the head's red slashes, textContent-built */
+function setInviteHead(a, b) {
+  inviteHead.textContent = '';
+  const r = document.createElement('span');
+  r.className = 'r';
+  r.textContent = '//';
+  inviteHead.append(a + ' ', r, ' ' + b);
+}
+/* the address is assembled at runtime — Cloudflare's email
+   obfuscation mangles any literal address in the served HTML.
+   The body is a tiny reply-by-number form: everything the ring
+   needs to seat a node, nothing it doesn't. Disciplines come
+   from CAT_NAMES so the list can never drift from the palette. */
+{
+  const discLines = CAT_NAMES.map((m, i) => '  [' + (i + 1) + '] ' + m.toLowerCase());
+  const body = ['my site: ',
+                'my name (or studio): ',
+                'my discipline (pick a number): ',
+                ...discLines,
+                ''].join('\r\n');
+  inviteCta.href = 'mailto:' + 'themonitor' + '@' + 'analogs.network' +
+                   '?subject=' + encodeURIComponent('add me') +
+                   '&body=' + encodeURIComponent(body);
+}
+
+/* founding counter — live registry only (mock's 150 is scenery,
+   not a member count) */
+const FOUNDING_SEATS = 100;
+if (LIVE && liveNodes.length < FOUNDING_SEATS) {
+  const txt = 'FOUNDING SOCKETS // ' + (FOUNDING_SEATS - liveNodes.length) + ' REMAINING';
+  const cEl = document.getElementById('ii-count');
+  cEl.textContent = txt;
+  cEl.hidden = false;
+  inviteFoot.textContent = txt;
+  inviteFoot.hidden = false;
+}
+
+function openInvite(seatNum, held) {
+  if (Number.isInteger(seatNum)) {
+    /* index-entry reading: the seat number IS the head, and the
+       invitation title steps down to the sub-line. A held seat says
+       so — but says nothing about WHO it holds for. */
+    setInviteHead('SEAT N#' + String(seatNum).padStart(3, '0'), held ? 'HELD' : 'UNCLAIMED');
+    inviteSeat.textContent = held ? 'RESERVED // AWAITING FIRST LIGHT' : 'JOIN // THE RING';
+    inviteSeat.hidden = false;
+  } else {
+    setInviteHead('JOIN', 'THE RING');
+    inviteSeat.hidden = true;
+  }
+  const heldP = document.getElementById('inv-held');
+  if (heldP) heldP.hidden = !held;
+  inviteEl.classList.add('open');
+  holdEngine();
+}
+function closeInvite() { inviteEl.classList.remove('open'); releaseEngine(); }
+document.getElementById('ii-add').addEventListener('click', () => openInvite());
+document.getElementById('invite-x').addEventListener('click', closeInvite);
+inviteEl.addEventListener('click', e => { if (e.target === inviteEl) closeInvite(); });
+
+/* restore the tab's filter — chips, rail, ring, and drift all agree */
+try {
+  const f = sessionStorage.getItem(FILTKEY);
+  if (f && CATS[f]) setFilter(f);
+} catch (e) {}
+
+/* ── SINCE LAST SYNC ─────────────────────────────────────────
+   localStorage only — no server, no cookie, nothing leaves the
+   device. Remember how many seats were lit on the last visit;
+   new ones glint on return (the personal, quiet cousin of FIRST
+   LIGHT). Mock data is a fixed 150, so test with ?sync=147. */
+const SYNCKEY = 'ring.lastseen';
+try {
+  const prev = JSON.parse(localStorage.getItem(SYNCKEY) || 'null');
+  const qs = qparam('sync');
+  const seen = qs !== null ? +qs : (prev && prev.n);
+  if (Number.isFinite(seen) && seen >= 0 && liveNodes.length > seen) {
+    const d = liveNodes.length - seen;
+    /* mark by join-order position — works for mock (1-based display)
+       and live (0-based node numbers) alike */
+    liveNodes.forEach((n, k) => { if (k >= seen) n.fresh = true; });
+    const el = document.getElementById('sync-note');
+    el.textContent = ` · +${d} SINCE LAST SYNC`;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 14000);
+  }
+  localStorage.setItem(SYNCKEY, JSON.stringify({ n: liveNodes.length, t: Date.now() }));
+} catch (e) {}
+
+/* ── BOOT SWEEP ──────────────────────────────────────────────
+   Ignition self-test: one lap of light around the helix, seats
+   flaring in seat order and dying out in ~1.8s — an instrument
+   lighting its dashboard at ignition. A traveling pulse, never a
+   held state: real members keep their light after it passes, and
+   nothing ever reads as a fake member. Guardrails, all load-time:
+   live registry only and only while the ring is young (< 15
+   members — it retires itself as the ring fills, and mock's 150
+   never qualifies); once per browser session; never under reduced
+   motion; never over a #/slug arrival (that visitor came to see a
+   node, not the self-test). Rides the existing per-node flash/
+   decay path — no new buffers, no input blocking. */
+const SWEEPKEY = 'ring.bootsweep';
+const SWEEP_S = 1.8;              /* one lap, seconds */
+let sweepT = -1, sweepSeat = 0;   /* -1 = idle / retired */
+try {
+  if (LIVE && liveNodes.length < 15 && !REDUCED && !PREVIEW &&
+      !/^#\//.test(location.hash) && !sessionStorage.getItem(SWEEPKEY)) {
+    sweepT = 0;
+    sessionStorage.setItem(SWEEPKEY, '1');
+  }
+} catch (e) {}
+
+/* ── transforms ──────────────────────────────────────────── */
+function project(ux, uy, uz, cosS, sinS, cosT, sinT, out) {
+  /* spin around the ring axis, then tilt toward camera */
+  const x1 = ux * cosS - uy * sinS;
+  const y1 = uy * cosS + ux * sinS;
+  const y2 = y1 * cosT - uz * sinT;
+  const z2 = y1 * sinT + uz * cosT;
+  const x = x1 * RMAJ, y = y2 * RMAJ, z = z2 * RMAJ;
+  const s = PERSPECTIVE / (PERSPECTIVE + z);
+  const px = x * s, py = y * s;
+  out.x = x; out.y = y; out.z = z;
+  out.sx = CX + px * COSR - py * SINR;   /* static roll — see ROLL */
+  out.sy = CY + px * SINR + py * COSR;
+  out.scale = s;
+}
+
+function curveMid(a, b, out) {
+  const mx = (a.sx + b.sx) / 2, my = (a.sy + b.sy) / 2;
+  out.x = mx + (CX - mx) * 0.035;
+  out.y = my + (CY - my) * 0.035;
+}
+
+/* a point on the chain helix at global parameter t ∈ [0,1) */
+function helixPoint(t, cosS, sinS, cosT, sinT, out) {
+  const th = t * TAU;
+  const ph = t * WINDINGS * TAU;
+  const ring = 1 + TUBE_RATIO * Math.cos(ph);
+  project(ring * Math.cos(th), ring * Math.sin(th), TUBE_RATIO * Math.sin(ph),
+          cosS, sinS, cosT, sinT, out);
+}
+function quadPoint(a, cp, b, t, out) {
+  const u = 1 - t;
+  out.x = u * u * a.sx + 2 * u * t * cp.x + t * t * b.sx;
+  out.y = u * u * a.sy + 2 * u * t * cp.y + t * t * b.sy;
+}
+
+/* ── render ──────────────────────────────────────────────── */
+let lastT = performance.now();
+let running = true;
+let ringPresented = false;   /* set true once a frame reaches the screen */
+/* render-time boot net: a throw inside the rAF callback is uncaught by
+   the async wrapper's .catch, so if the engine dies before the first
+   frame ever presents, fall back to the static page (a later stray
+   error on a working page won't nuke it — the flag is already true) */
+window.addEventListener('error', () => {
+  if (!ringPresented) document.body.classList.add('no-engine');
+});
+
+/* reduced-motion contract: NO continuous loop — exactly one static
+   frame, re-rendered on demand (hover, focus, filter, resize) so the
+   page stays interactive but fully still. */
+let _rrPending = false;
+function requestRender() {
+  if (!REDUCED || _rrPending) return;
+  _rrPending = true;
+  requestAnimationFrame(t => { _rrPending = false; render(t); });
+}
+const _cp = { x: 0, y: 0 }, _pt = { x: 0, y: 0 }, _mote = {};
+const zMax = () => RMAJ * (1 + TUBE_RATIO);
+
+/* frame-time governor v6: a safety valve, not an art director.
+   v5's temperament stripped the lighting on every real device: it
+   judged startup jank (15-frame warmup), shed 3 tiers at a blow,
+   measured its own resize hitches as climb failures, and persisted
+   the resulting lockout — the ratchet only turned one way. v6:
+   40-frame warmup, resize frames skipped (gov.skip), sheds are
+   ±1 (2 in emergencies), timing uses the UNCLAMPED frame delta
+   (v5 accumulated the 50ms-clamped dt, so its >80ms emergency
+   branch was dead code), the climb also trusts frame WORK time
+   (rAF deltas can't tell "16.7ms because vsync" from "because
+   busy" — a loafing 60Hz machine now climbs), and only the tier
+   persists — bounces reset every load so a bad first load can
+   heal. ?tier=N locks it entirely. */
+const gov = { warm: 0, acc: 0, n: 0, work: 0, lastW: 0, tier: 0,
+              bounces: 0, probing: false, skip: 0, locked: QTIER !== null };
+const GOVKEY = 'ring.govtier3';   /* v6 — tier only; bounces never persist */
+/* one function owns the tier ladder so init and runtime can't drift.
+   Ladder v5 (2026-07-15d — reordered after the owner compared a shed
+   Firefox frame against Safari tier 0 and the LIGHT had gone missing):
+   the lighting IS the product (decision of record), so the governor
+   sheds PIXELS before it sheds LIGHT —
+   ① half the dust           ② retina privilege revoked
+   ③ render at 0.75× res     ④ 0.6× res + bloom stride 2
+   ⑤ bloom stride 3          ⑥ room-glow mip off + stroke LOD (last resort)
+   Resolution is the big lever: raster cost ∝ area, and (measured,
+   owner FF 2026-07-15) Gecko only GPU-accelerates canvases under a
+   size ceiling between 1.7M and 3.9M px — ④ puts a 2560×1517 window
+   at 1.4M px, back on the GPU path with the full bloom stack intact. */
+function applyTier(t) {
+  if (t !== gov.tier) console.info('[gov] tier ' + gov.tier + ' → ' + t);
+  gov.tier = t;
+  Q.moteStride = t >= 1 ? 2 : 1;
+  Q.bloomStride = t >= 5 ? 3 : (t >= 4 ? 2 : 1);
+  Q.wideBloom = t < 6;
+  Q.lod = t >= 6 ? 2 : 1;
+  const cap = t >= 2 ? 1 : 1.5;
+  const bud = t >= 2 ? 0 : BUDGET0;
+  const rs  = t >= 4 ? 0.6 : (t >= 3 ? 0.75 : 1);
+  if (cap !== DPRCAP || bud !== PXBUDGET || rs !== RESSCALE) {
+    DPRCAP = cap; PXBUDGET = bud; RESSCALE = rs;
+    resize();
+    /* the resize itself reallocates six canvases and hitches — those
+       frames must not be measured or every tier change (either
+       direction) reads as a failure of the tier it just applied.
+       This was v5's ratchet: climb probes tripped over their own
+       resize, "bounced", and two bounces locked the tier for the
+       whole session. */
+    gov.skip = 12;
+  }
+  gov.acc = 0; gov.n = 0; gov.work = 0;
+}
+let bloomTick = 0;
+function saveGov() {
+  try { sessionStorage.setItem(GOVKEY, String(gov.tier)); } catch (e) {}
+}
+try {
+  if (gov.locked) {
+    applyTier(Math.max(0, Math.min(6, +QTIER || 0)));
+  } else {
+    /* start pre-shed if this tab chugged before — but ALWAYS re-probe:
+       bounces reset every load, so a stale tier can heal (v5 persisted
+       the bounce lockout and a bad first load stripped the lighting
+       for the rest of the session — the "uniformly reduced" bug) */
+    const t0 = Math.min(6, +(sessionStorage.getItem(GOVKEY) || 0) || 0);
+    if (t0 > 0) applyTier(t0);
+  }
+} catch (e) {}
+
+/* focus-haze sprite cache — createRadialGradient was being rebuilt
+   every frame while a node was focused (Gecko rebuilds gradient LUTs
+   each time). Seven disciplines = seven bakes, ever. */
+const hazeCache = {};
+function makeHaze(color) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0,   col(color, 0.10));
+  grad.addColorStop(0.4, col(color, 0.03));
+  grad.addColorStop(1,   col(color, 0));
+  g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+  return c;
+}
+
+/* floor sprite cache — same disease, same cure: baked ~240px wide,
+   rebuilt only when the eased color crosses a 32-level quantization
+   step or the mip resizes; bilinear upscale + dither keep it band-free. */
+const floorSpr = document.createElement('canvas');
+let floorKey = -1, floorW = 0;
+function bakeFloor(fw, fh) {
+  /* where the POOL sits is baked in here, not chosen at draw time.
+     FULL: the band is the bottom 72% of the buffer and the center
+     sits 18% below the viewport bottom — the pool IS the bottom
+     edge (unchanged). LEAN: the band covers the WHOLE buffer, the
+     center rides just under the ring's bottom rim (FLOORB), and
+     the radius runs out exactly at the buffer top — the falloff
+     completes inside the sprite in every direction, so no cut edge
+     can survive anywhere on screen (the old band-slide parked its
+     bright bottom edge mid-screen with pure black below it). */
+  const sw = 240, k = sw / fw;
+  const sh = Math.max(16, Math.round(fh * (LEAN ? 1 : 0.72) * k));
+  floorSpr.width = sw; floorSpr.height = sh;
+  const g = floorSpr.getContext('2d');
+  const cy  = (LEAN ? FLOORB + 0.12 : 0.9)  * fh * k;
+  const rad =  LEAN ? cy                    : fh * 0.85 * k;
+  /* the pool follows the INSTRUMENT, not the viewport: in the
+     landscape column layout the ring sits left of center, so the
+     pool centers on the ring (CX) and stretches wide — a floor the
+     room stands on, not a spotlight next to it. Bottom-panel
+     layouts keep the centered circular pool. */
+  const cx = (SIDECOL ? CX / W : 0.5) * sw;
+  const fg = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
+  fg.addColorStop(0,   col(floorCur, 0.32));
+  fg.addColorStop(0.5, col(floorCur, 0.08));
+  fg.addColorStop(1,   col(floorCur, 0));
+  g.fillStyle = fg;
+  if (SIDECOL) {
+    g.translate(cx, 0); g.scale(1.6, 1); g.translate(-cx, 0);
+    g.fillRect(-sw, 0, sw * 3, sh);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    g.fillRect(0, 0, sw, sh);
+  }
+}
+
+/* live light points the dust reacts to (white ring packets), rebuilt
+   every frame while the pulses draw */
+let headPts = [];
+
+function render(now) {
+  const raw = (now - lastT) / 1000;        /* governor sees the truth */
+  const dt = Math.min(0.05, raw);          /* simulation stays clamped */
+  lastT = now;
+  const w0 = performance.now();
+
+  if (!REDUCED && !gov.locked && ++gov.warm > 40) {
+    if (gov.skip > 0) { gov.skip--; }
+    else {
+    gov.acc += raw; gov.n++; gov.work += gov.lastW;
+    /* windows close at 60 frames — or at 20 when things are dire, so a
+       browser at 8fps reaches relief in seconds, not half a minute */
+    const gavg = gov.acc / Math.max(1, gov.n);
+    if (gov.n >= 60 || (gov.n >= 20 && gavg > 0.08)) {
+      const wavg = gov.work / Math.max(1, gov.n);
+      if (gavg > 0.026 && gov.tier < 6) {
+        /* a shed right after a climb = the climb failed; two failed
+           climbs per session and the governor stops hunting */
+        if (gov.probing) { gov.bounces++; gov.probing = false; }
+        applyTier(Math.min(6, gov.tier + (gavg > 0.08 ? 2 : 1)));
+        saveGov();
+      } else if ((gavg < 0.0175 || wavg < 0.012) && gov.tier > 0 && gov.bounces < 2) {
+        /* comfortably at refresh rate — or the frame WORK is light and
+           the slow deltas are just vsync jitter — probe one tier
+           lighter, so we settle on the LIGHTEST tier that's fast */
+        gov.probing = true;
+        applyTier(gov.tier - 1);
+        saveGov();
+      } else if (gov.probing) {
+        gov.probing = false;               /* climb held — keep it */
+        saveGov();
+      }
+      gov.acc = 0; gov.n = 0; gov.work = 0;
+    }
+    }
   }
 
-  function draw(now) {
-    var dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
+  /* motion */
+  if (autoRotate) targetSpin += 0.00085 * (dt * 60);
+  /* flick momentum: decays in about a second, then the resume
+     timer brings back the default drift — ramp down, not a stop */
+  if (!dragging && Math.abs(dragVel) > 0.001) {
+    targetSpin += dragVel * dt;
+    dragVel *= Math.pow(0.12, dt);
+  }
+  let ds = targetSpin - spin;
+  ds = ((ds + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  spin += ds * 0.05;
+  wobble = REDUCED ? 0 : Math.sin(now * 0.00006) * 0.1;
 
-    /* frame-time governor v2: shed quality in tiers instead of chugging.
-       Hastier than v1 (40-frame warmup, 60-frame windows, double-shed
-       when drastically over) — users judge the first five seconds; the
-       old 120/90 cadence took 10-20s of bad frames to find the floor. */
-    if (!REDUCED && ++gov.warm > 15) {
-      gov.acc += dt; gov.n++;
-      /* windows close at 60 frames — or at 20 when things are dire, so
-         a browser at 8fps reaches relief in seconds, not half a minute */
-      var gavg = gov.acc / Math.max(1, gov.n);
-      if (gov.n >= 60 || (gov.n >= 20 && gavg > 0.08)) {
-        if (gavg > 0.026 && gov.tier < 6) {
-          /* a shed right after a climb = the climb failed; two failed
-             climbs per session and the governor stops hunting */
-          if (gov.probing) { gov.bounces++; gov.probing = false; }
-          applyTier(Math.min(6, gov.tier + (gavg > 0.08 ? 3 : gavg > 0.04 ? 2 : 1)));
-          saveGov();
-        } else if (gavg < 0.0175 && gov.tier > 0 && gov.bounces < 2) {
-          /* comfortably at refresh rate — probe one tier lighter, so
-             we settle on the LIGHTEST tier that's actually fast */
-          gov.probing = true;
-          applyTier(gov.tier - 1);
-          saveGov();
-        } else if (gov.probing) {
-          gov.probing = false;             /* climb held — keep it */
-          saveGov();
+  const tilt = TILT + wobble;
+  const cosS = Math.cos(spin), sinS = Math.sin(spin);
+  const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+  const ZM = zMax();
+
+  /* boot sweep: the head runs the seat order once; every seat it
+     passes gets the same flash kick a packet arrival gives, and
+     the existing decay is the trail */
+  if (sweepT >= 0) {
+    /* max(0,·): the first rAF timestamp can PRECEDE the lastT taken
+       at script eval, and one negative dt would kill the -1 sentinel */
+    sweepT += Math.max(0, dt);
+    const head = (sweepT / SWEEP_S) * NUM_NODES;
+    while (sweepSeat < NUM_NODES && sweepSeat <= head) nodes[sweepSeat++].flash = 1;
+    if (sweepSeat >= NUM_NODES) {
+      sweepT = -1;                             /* lap done — decay finishes it */
+      /* the lap ends where the ring began: the self-test hands off
+         to seat 000 with a focused-arrival pop, and the young-ring
+         beacon keeps the first light burning after the trail dies */
+      const first = liveNodes[0];
+      if (first) {
+        first.flash = 1;
+        first.springScale = Math.max(first.springScale, 2.6);
+        first.springVel = 0;
+      }
+    }
+  }
+
+  for (const n of nodes) {
+    /* spring physics */
+    n.springVel += (1 - n.springScale) * 0.18;
+    n.springVel *= 0.82;
+    n.springScale += n.springVel;
+    n.flash *= Math.pow(0.02, dt);          /* fast decay */
+    /* returning visitor: seats lit since the last sync glint for the
+       first ~45s, staggered by seat so it reads as life, not an alarm */
+    if (n.fresh && now < 45000 &&
+        ((now * 0.001 + n.id * 0.73) % 2.4) < 0.05) n.flash = Math.max(n.flash, 0.55);
+    /* category-filter ease (reduced motion: snap — single-frame renders) */
+    const targetVis = (activeCat && n.medium !== activeCat) ? 0.06 : 1;
+    if (REDUCED) n.vis = targetVis;
+    else n.vis += (targetVis - n.vis) * Math.min(1, dt * 7);
+
+    project(n.ux, n.uy, n.uz, cosS, sinS, cosT, sinT, n);
+  }
+
+  /* hover — front half only (same hit-test the click uses) */
+  hovered = pickNode(mouse.x, mouse.y);
+  /* vacant seats are doors too (live mode) — cursor only; they never
+     become `hovered`, so the focus glow stays a members-only thing */
+  canvas.style.cursor = (hovered || pickVacant(mouse.x, mouse.y)) ? 'pointer' : 'crosshair';
+
+  const focus = active || hovered;
+  const nbrs = focus ? adj.get(focus.id) : null;
+
+  /* pulses */
+  if (!REDUCED) {
+    for (let i = pulses.length - 1; i >= 0; i--) {
+      const p = pulses[i];
+      p.t += p.speed * dt;
+      if (p.t >= 1) {
+        const arriveNode = p.fromA ? p.conn.b : p.conn.a;
+        arriveNode.flash = Math.min(1, arriveNode.flash + 0.9);
+        arriveNode.springScale = Math.max(arriveNode.springScale, 1.45);
+        if (p.white && p.conn.chain) {
+          /* ring packets hand off to the next chain segment */
+          const nx = chainByA.get(arriveNode.id);
+          if (nx) spawnPulse(nx, true, true, 3.6);
         }
-        gov.acc = 0; gov.n = 0;
+        pulses.splice(i, 1);
       }
     }
-
-    if (!REDUCED) {
-      spin += 0.00085 * dt * 60;
-      wobble = Math.sin(now * 0.00006) * 0.1;
-      pkt += dt / 26;                          /* one lap ≈ 26s */
-      if (pkt >= 1) { pkt -= 1; catIdx = (catIdx + 1) % CATS.length; }
-      var target = CATS[catIdx];
-      cycleCur = mix(cycleCur, target, Math.min(1, dt * 1.5));
-      /* floor stays RED-dominant (a 55% packet mix washed it toward
-         muted grays — read as the floor fading out after load); the
-         packet only tints it. Idle look matches demos/ring.html. */
-      floorCur = mix(floorCur, mix(RED, cycleCur, 0.25), Math.min(1, dt * 1.2));
-      /* a dark socket occasionally flickers — trying to come online */
-      if (now > flickerAt) {
-        var fi = 1 + ((Math.random() * (SOCKETS - 1)) | 0);
-        if (!sockets[fi].lit) sockets[fi].flash = 1;   /* lit seats don't flicker */
-        flickerAt = now + 3500 + Math.random() * 6000;
+    /* occasional colored cross-fires, biased toward the focus */
+    if (cross.length && Math.random() < dt * 1.6 && pulses.length < 14) {
+      let pool = cross;
+      if (focus && Math.random() < 0.6) {
+        pool = cross.filter(c => c.a === focus || c.b === focus || nbrs.has(c.a.id) || nbrs.has(c.b.id));
+        if (!pool.length) pool = cross;
       }
+      const c = pool[(Math.random() * pool.length) | 0];
+      if (c) spawnPulse(c, Math.random() < 0.5, false);
     }
+  }
 
-    var tilt = TILT + wobble;
-    var cosS = Math.cos(spin), sinS = Math.sin(spin);
-    var cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-    var ZM = RMAJ * (1 + TUBE);
+  /* ════════ EMISSIVE PASS ════════ */
+  ectx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ectx.clearRect(0, 0, W, H);
+  ectx.globalCompositeOperation = 'lighter';
+  ectx.lineCap = 'round';
 
-    ectx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    ectx.clearRect(0, 0, W, H);
-    ectx.globalCompositeOperation = 'lighter';
-    ectx.lineCap = 'round';
+  /* focused-node atmospheric haze (blooms with everything else) —
+     cached sprite per discipline, scaled on draw */
+  if (focus) {
+    const hr = RMAJ * 0.62;
+    let hz = hazeCache[focus.medium];
+    if (!hz) hz = hazeCache[focus.medium] = makeHaze(focus.color);
+    ectx.drawImage(hz, focus.sx - hr, focus.sy - hr, hr * 2, hr * 2);
+  }
 
-    /* vessel guides — the hull. Kept clearly visible (owner call,
-       2026-07-14b — the full FARRED sink had buried it): the depth
-       ramp holds 25% warm red even far-side, alpha floor/gain up,
-       stroke a touch wider so the bloom catches it. */
-    var g, k, depth;
-    ectx.lineWidth = 0.65;
-    for (g = 0; g < 14; g += Q.lod) {
-      var gt = (g / 14) * TAU, zsum = 0;
-      ectx.beginPath();
-      for (k = 0; k <= 20; k++) {
-        var gp = (k / 20) * TAU;
-        var rr = 1 + TUBE * Math.cos(gp);
-        project(rr * Math.cos(gt), rr * Math.sin(gt), TUBE * Math.sin(gp), cosS, sinS, cosT, sinT);
-        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
-        zsum += out.z;
-      }
-      depth = Math.max(0, (ZM - zsum / 21) / (2 * ZM));
-      ectx.strokeStyle = col(mix(FARRED, RED, 0.25 + 0.75 * depth), 0.14 + 0.28 * Math.pow(depth, 1.6));
-      ectx.stroke();
+  /* vessel guides — the torus wireframe itself: the instrument's hull.
+     Show it off (2026-07-14b, owner call — v2's full FARRED sink had
+     buried it): the depth ramp keeps 25% warm red even on the far
+     side, the alpha floor/gain are up, and the stroke is a touch
+     wider so the bloom catches it. Understated, but present. */
+  const GUIDE = { r: 255, g: 60, b: 50 };
+  ectx.lineWidth = 0.65;
+  /* tube cross-sections (meridians) */
+  for (let g = 0; g < 16; g += Q.lod) {
+    const gt = (g / 16) * TAU;
+    ectx.beginPath();
+    let zSum = 0;
+    for (let k = 0; k <= 22; k++) {
+      const gp = (k / 22) * TAU;
+      const ring = 1 + TUBE_RATIO * Math.cos(gp);
+      project(ring * Math.cos(gt), ring * Math.sin(gt), TUBE_RATIO * Math.sin(gp),
+              cosS, sinS, cosT, sinT, _mote);
+      if (k === 0) ectx.moveTo(_mote.sx, _mote.sy);
+      else ectx.lineTo(_mote.sx, _mote.sy);
+      zSum += _mote.z;
     }
-
-    /* the coil: ember at rest, ignited behind the survey packet.
-       tier-4 RUN is 6, not 8 — the packet head's 0.016 span must
-       still cover ≥2 runs (§3.4 detachment bug) */
-    var SAMPLES = 800, RUN = Q.lod > 1 ? 6 : 4;
-    for (k = 0; k < SAMPLES; k += RUN) {
-      var midT = ((k + RUN / 2) / SAMPLES) % 1;
-      /* distance behind the packet, wrapped */
-      var behind = pkt - midT; if (behind < 0) behind += 1;
-      var heat = REDUCED ? 0 : Math.max(0, 1 - behind / 0.14);
-      ectx.beginPath();
-      var zs = 0;
-      for (var s2 = 0; s2 <= RUN; s2++) {
-        /* no wrap: WINDINGS is non-integer, so t=1 !== t=0 — a modulo
-           here draws a seam chord across the whole shape */
-        helix(Math.min(1, (k + s2) / SAMPLES), cosS, sinS, cosT, sinT);
-        if (s2 === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
-        zs += out.z;
-      }
-      depth = Math.max(0, (ZM - zs / (RUN + 1)) / (2 * ZM));
-      var da = 0.14 + 0.86 * Math.pow(depth, 1.6);
-      /* far side sinks toward deep desaturated red — atmosphere, not
-         just fade (the fiber-optic white→warm falloff, reversed) */
-      var emberC = mix(FARRED, RED, Math.min(1, depth * 1.35));
-      var cc = heat > 0.01 ? mix(emberC, cycleCur, heat) : emberC;
-      var a1 = da * (0.17 + heat * 0.5);
-      var a2 = da * (0.46 + heat * 0.6);
-      ectx.strokeStyle = col(cc, a1);
-      ectx.lineWidth = (1.6 + heat * 1.6) * out.scale;
-      ectx.stroke();
-      ectx.strokeStyle = col(heat > 0.5 ? mix(cc, WHITE, (heat - 0.5) * 0.8) : cc, a2);
-      ectx.lineWidth = (0.55 + heat * 0.45) * out.scale;
-      ectx.stroke();
-    }
-
-    /* the packet head — a continuous stroke along the same helix as
-       the coil, long enough to bridge the trail's segment grid, so
-       head and trail read as one unbroken filament */
-    if (!REDUCED) {
-      var HEAD = 12, SPAN = 0.016;
-      ectx.beginPath();
-      for (k = 0; k <= HEAD; k++) {
-        var tt = pkt - (k / HEAD) * SPAN; if (tt < 0) tt += 1;
-        helix(tt, cosS, sinS, cosT, sinT);
-        if (k === 0) ectx.moveTo(out.sx, out.sy); else ectx.lineTo(out.sx, out.sy);
-      }
-      ectx.strokeStyle = col(cycleCur, 0.45);
-      ectx.lineWidth = 3.2 * out.scale;
-      ectx.stroke();
-      ectx.strokeStyle = col(mix(cycleCur, WHITE, 0.75), 0.95);
-      ectx.lineWidth = 1.1 * out.scale;
-      ectx.stroke();
-      /* hot tip, sitting exactly on the filament's end */
-      helix(pkt, cosS, sinS, cosT, sinT);
-      ectx.fillStyle = col(mix(cycleCur, WHITE, 0.85), 0.95);
-      ectx.beginPath();
-      ectx.arc(out.sx, out.sy, 1.8 * out.scale, 0, TAU);
-      ectx.fill();
-      headX = out.sx; headY = out.sy;      /* light source for the dust */
-    }
-
-    /* sockets: dark seats, the odd hopeful flicker; merged members
-       burn in their discipline color (lit by the registry data
-       island), node 000 white at the origin */
-    for (k = 0; k < SOCKETS; k++) {
-      var so = sockets[k];
-      so.flash *= Math.pow(0.05, dt);
-      var ring2 = 1 + TUBE * Math.cos(so.phi);
-      project(ring2 * Math.cos(so.theta), ring2 * Math.sin(so.theta), TUBE * Math.sin(so.phi), cosS, sinS, cosT, sinT);
-      depth = Math.max(0.05, (ZM - out.z) / (2 * ZM));
-      if (so.lit) {
-        var pulse = 0.85 + 0.15 * Math.sin(now * 0.002 + so.tw);
-        var gr = (so.lit.white ? 26 : 17) * out.scale * pulse;
-        ectx.globalAlpha = 0.9 * depth + 0.1;
-        ectx.drawImage(so.lit.sprite, out.sx - gr, out.sy - gr, gr * 2, gr * 2);
-        ectx.globalAlpha = 1;
-        ectx.fillStyle = so.lit.white ? col(WHITE, 0.95) : col(mix(so.lit.c, WHITE, 0.55), 0.95);
+    const depth = Math.max(0, (ZM - zSum / 23) / (2 * ZM));
+    ectx.strokeStyle = col(mix(FARRED, GUIDE, 0.25 + 0.75 * depth), depthA(0.15, 0.3, depth));
+    ectx.stroke();
+  }
+  /* longitudes: outer equator, inner equator, crown, keel */
+  const LONGS = [[0, 1 + TUBE_RATIO, 0], [Math.PI, 1 - TUBE_RATIO, 0],
+                 [Math.PI / 2, 1, TUBE_RATIO], [-Math.PI / 2, 1, -TUBE_RATIO]];
+  for (const [, ringR, zOff] of LONGS) {
+    let started = false;
+    for (let k = 0; k <= 100; k++) {
+      const gt = (k / 100) * TAU;
+      project(ringR * Math.cos(gt), ringR * Math.sin(gt), zOff,
+              cosS, sinS, cosT, sinT, _mote);
+      const depth = Math.max(0, (ZM - _mote.z) / (2 * ZM));
+      if (!started) { ectx.beginPath(); ectx.moveTo(_mote.sx, _mote.sy); started = true; continue; }
+      ectx.lineTo(_mote.sx, _mote.sy);
+      if (k % (10 * Q.lod) === 0) {   /* stroke in short depth-faded runs */
+        ectx.strokeStyle = col(mix(FARRED, GUIDE, 0.25 + 0.75 * depth), depthA(0.12, 0.32, depth));
+        ectx.stroke();
         ectx.beginPath();
-        ectx.arc(out.sx, out.sy, (so.lit.white ? 1.7 : 1.4) * out.scale, 0, TAU);
-        ectx.fill();
-        if (so.lit.white) { orgX = out.sx; orgY = out.sy; }  /* second light source */
+        ectx.moveTo(_mote.sx, _mote.sy);
+      }
+    }
+    ectx.stroke();
+  }
+
+  /* THE RING — the join-order chain as a continuous fiber coil.
+     Drawn parametrically so it hugs the tube; nodes are beads on it.
+     Color follows the nearest node's discipline; the far side sinks
+     toward the atmospheric red so the coil reads as one wire
+     receding through the dark. */
+  {
+    const SAMPLES = 880, RUN = Q.lod > 1 ? 14 : 8;
+    for (let k = 0; k < SAMPLES; k += RUN) {
+      const midT = ((k + RUN / 2) / SAMPLES) % 1;
+      const nearNode = nodes[Math.round(midT * NUM_NODES) % NUM_NODES];
+      const vis = nearNode.vis;
+      ectx.beginPath();
+      let zSum = 0;
+      for (let s = 0; s <= RUN; s++) {
+        helixPoint(((k + s) % SAMPLES) / SAMPLES, cosS, sinS, cosT, sinT, _mote);
+        if (s === 0) ectx.moveTo(_mote.sx, _mote.sy);
+        else ectx.lineTo(_mote.sx, _mote.sy);
+        zSum += _mote.z;
+      }
+      const depth = Math.max(0, (ZM - zSum / (RUN + 1)) / (2 * ZM));
+      const a = depthA(0.16, 0.84, depth) * vis;
+      const cc = mix(FARRED, mix(nearNode.color, WHITE, 0.12), Math.min(1, depth * 1.35));
+      ectx.strokeStyle = col(cc, a * 0.3);
+      ectx.lineWidth = 2.4 * _mote.scale;
+      ectx.stroke();
+      ectx.strokeStyle = col(cc, a * 0.85);
+      ectx.lineWidth = 0.8 * _mote.scale;
+      ectx.stroke();
+    }
+  }
+
+  /* connections — thin cores; the bloom builds the halo.
+     Base chain segments are skipped: the helix coil above IS the
+     chain at rest; chords only light up for focus/neighbors. */
+  for (const c of conns) {
+    const a = c.a, b = c.b;
+    const vis = Math.min(a.vis, b.vis);
+    if (vis < 0.02) continue;
+    const focusRelated = focus && (a === focus || b === focus ||
+                                   (nbrs.has(a.id) && nbrs.has(b.id)));
+    if (c.chain && !focusRelated) continue;
+
+    const avgZ = (a.z + b.z) / 2;
+    const depth = Math.max(0, (ZM - avgZ) / (2 * ZM));
+    const dAlpha = depthA(0.18, 0.82, depth);
+
+    const isFocusConn = focus && (a === focus || b === focus);
+    const isNbrConn = !isFocusConn && focus && (nbrs.has(a.id) && nbrs.has(b.id));
+
+    const lineColor = isFocusConn
+      ? (a === focus ? a.color : b.color)
+      : mix(a.color, b.color, 0.5);
+
+    curveMid(a, b, _cp);
+    ectx.beginPath();
+    ectx.moveTo(a.sx, a.sy);
+    ectx.quadraticCurveTo(_cp.x, _cp.y, b.sx, b.sy);
+
+    const sc = (a.scale + b.scale) / 2;
+    if (isFocusConn) {
+      const alpha = dAlpha * vis;
+      ectx.strokeStyle = col(lineColor, alpha * 0.35);
+      ectx.lineWidth = 3.2 * sc;
+      ectx.stroke();
+      ectx.strokeStyle = col(mix(lineColor, WHITE, 0.65), alpha * 0.95);
+      ectx.lineWidth = 1.1 * sc;
+      ectx.stroke();
+    } else if (isNbrConn) {
+      const alpha = dAlpha * vis * 0.6;
+      ectx.strokeStyle = col(lineColor, alpha * 0.3);
+      ectx.lineWidth = 2.2 * sc;
+      ectx.stroke();
+      ectx.strokeStyle = col(lineColor, alpha * 0.85);
+      ectx.lineWidth = 0.8 * sc;
+      ectx.stroke();
+    } else {
+      const base = c.chain ? 0.8 : 0.5;    /* the chain reads hotter — it IS the ring */
+      const alpha = dAlpha * vis * base;
+      ectx.strokeStyle = col(lineColor, alpha * 0.32);
+      ectx.lineWidth = 2.2 * sc;
+      ectx.stroke();
+      ectx.strokeStyle = col(lineColor, alpha * 0.9);
+      ectx.lineWidth = 0.7 * sc;
+      ectx.stroke();
+    }
+  }
+
+  /* traveling pulses — packets of light on the wires; chain pulses
+     ride the true helix, cross pulses ride their chord. The white
+     ring packets also register as live light points for the dust. */
+  headPts = [];
+  for (const p of pulses) {
+    const a = p.fromA ? p.conn.a : p.conn.b;
+    const b = p.fromA ? p.conn.b : p.conn.a;
+    const vis = Math.min(a.vis, b.vis);
+    if (vis < 0.05) continue;
+    const cc = p.white ? mix(mix(a.color, WHITE, 0.75), WHITE, 0.2) : mix(a.color, WHITE, 0.35);
+    if (!p.conn.chain) curveMid(a, b, _cp);
+    for (let k = 0; k < 5; k++) {
+      const tt = Math.max(0, Math.min(1, p.t - k * 0.035));
+      if (p.conn.chain) {
+        helixPoint(((p.conn.a.id + tt * (p.conn.gap || 1)) / NUM_NODES) % 1, cosS, sinS, cosT, sinT, _mote);
+        _pt.x = _mote.sx; _pt.y = _mote.sy;
       } else {
-        var fa = (0.15 + 0.07 * Math.sin(now * 0.0012 + so.tw) + so.flash * 0.85) * depth;
-        if (fa > 0.02) {
-          ectx.fillStyle = col(so.flash > 0.2 ? mix(RED, WHITE, so.flash * 0.6) : RED, fa);
-          ectx.beginPath();
-          ectx.arc(out.sx, out.sy, (0.9 + so.flash * 1.2) * out.scale, 0, TAU);
-          ectx.fill();
-        }
+        quadPoint(a, _cp, b, tt, _pt);
       }
+      if (k === 0 && p.white && p.conn.chain) headPts.push({ x: _pt.x, y: _pt.y });
+      const alpha = (1 - k / 5) * 0.9 * vis;
+      const r = (2.4 - k * 0.35) * ((a.scale + b.scale) / 2);
+      ectx.fillStyle = col(cc, alpha);
+      ectx.beginPath();
+      ectx.arc(_pt.x, _pt.y, Math.max(0.4, r), 0, TAU);
+      ectx.fill();
     }
+  }
 
-    /* dust — reacts to the two live light sources (packet head + origin):
-       squared-distance falloff, no sqrt. Lit motes flare, scale, and
-       tint toward the light; dim motes batch into three Path2D alpha
-       buckets so the whole field costs a handful of fill calls. */
-    var buckets = [null, null, null];
-    var BUCKET_A = [0.022, 0.045, 0.075];
-    var pr2 = (RMAJ * 0.32) * (RMAJ * 0.32);
-    var or2 = pr2 * 0.35;
-    for (k = 0; k < motes.length; k += Q.moteStride) {
-      var mo = motes[k];
-      if (!REDUCED) { mo.theta += 0.00005; mo.tw += mo.tws * dt; }
-      var r3 = 1 + TUBE * Math.cos(mo.phi);
-      project(r3 * Math.cos(mo.theta) + mo.ox, r3 * Math.sin(mo.theta) + mo.oy,
-              TUBE * Math.sin(mo.phi) + mo.oz, cosS, sinS, cosT, sinT);
-      depth = Math.max(0, (ZM - out.z) / (2 * ZM));
-      /* fake bokeh — circle of confusion by depth. Points of light
-         off the focal plane (the near rim, where the eye lives)
-         spread into bigger, dimmer discs; the bloom rounds their
-         edge. Costs a couple of muls per mote, no extra buffers.
-         ONLY the dust defocuses — the subject stays tack sharp. */
-      var coc = BOKEH * Math.min(1, Math.abs(out.z + RMAJ * 0.65) / (RMAJ * 1.6));
-      var bk = 1 + 1.8 * coc;
-      var tw2 = 0.5 + 0.5 * Math.sin(mo.tw);
-      var ma = (0.03 + 0.05 * tw2) * depth / (bk * Math.sqrt(bk));
-      var boost = 0;
-      if (!REDUCED) {
-        var dx = out.sx - headX, dy = out.sy - headY;
-        boost = 0.6 / (1 + (dx * dx + dy * dy) / pr2);
-        dx = out.sx - orgX; dy = out.sy - orgY;
-        boost += 0.35 / (1 + (dx * dx + dy * dy) / or2);
-      }
-      if (boost > 0.04) {
-        ma += boost * (0.5 + 0.5 * tw2);
-        ectx.fillStyle = col(mix(DUST, cycleCur, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
+  /* dust — reacts to the live light sources (the focused node + the
+     white ring packets): squared-distance falloff, no sqrt. Lit
+     motes flare, scale, and tint toward the light; dim motes batch
+     into three Path2D alpha buckets so the whole field costs a
+     handful of fill calls. */
+  const buckets = [null, null, null];
+  const BUCKET_A = [0.022, 0.045, 0.075];
+  const fr2 = (RMAJ * 0.55) * (RMAJ * 0.55);   /* focus halo reach */
+  const pr2 = (RMAJ * 0.28) * (RMAJ * 0.28);   /* packet halo reach */
+  for (let k = 0; k < motes.length; k += Q.moteStride) {
+    const m = motes[k];
+    if (!REDUCED) { m.theta += m.drift * dt * 60000 * 0.001 + 0.00004; m.tw += m.twSpeed * dt; }
+    const ring = 1 + TUBE_RATIO * Math.cos(m.phi);
+    project(ring * Math.cos(m.theta) + m.ox, ring * Math.sin(m.theta) + m.oy,
+            TUBE_RATIO * Math.sin(m.phi) + m.oz, cosS, sinS, cosT, sinT, _mote);
+    const depth = Math.max(0, (ZM - _mote.z) / (2 * ZM));
+    /* fake bokeh — circle of confusion by depth. Points of light
+       off the focal plane (the near rim, where focus lives) spread
+       into bigger, dimmer discs; the bloom rounds their edge. Costs
+       a couple of muls per mote, no extra buffers. ONLY the dust
+       defocuses — the subject stays tack sharp. */
+    const coc = BOKEH * Math.min(1, Math.abs(_mote.z + RMAJ * 0.65) / (RMAJ * 1.6));
+    const bk = 1 + 1.8 * coc;
+    const tw2 = 0.5 + 0.5 * Math.sin(m.tw);
+    let ma = (0.04 + 0.06 * tw2) * depth / (bk * Math.sqrt(bk));
+    let boost = 0, bc = DUST;
+    if (focus) {
+      const dx = _mote.sx - focus.sx, dy = _mote.sy - focus.sy;
+      boost = 0.55 / (1 + (dx * dx + dy * dy) / fr2);
+      bc = focus.color;
+    }
+    for (const hp of headPts) {
+      const dx = _mote.sx - hp.x, dy = _mote.sy - hp.y;
+      const hb = 0.3 / (1 + (dx * dx + dy * dy) / pr2);
+      if (hb > boost) { boost = hb; bc = WHITE; }
+    }
+    if (boost > 0.04) {
+      ma += boost * (0.5 + 0.5 * tw2);
+      ectx.fillStyle = col(mix(DUST, bc, Math.min(1, boost * 1.6)), Math.min(0.8, ma));
+      ectx.beginPath();
+      ectx.arc(_mote.sx, _mote.sy, (0.45 + boost * 1.0) * _mote.scale * bk, 0, TAU);
+      ectx.fill();
+    } else if (ma >= 0.012) {
+      const bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
+      if (!buckets[bi]) buckets[bi] = new Path2D();
+      const mr = 0.5 * _mote.scale * bk;
+      buckets[bi].moveTo(_mote.sx + mr, _mote.sy);
+      buckets[bi].arc(_mote.sx, _mote.sy, mr, 0, TAU);
+    }
+  }
+  for (let k = 0; k < 3; k++) {
+    if (buckets[k]) {
+      ectx.fillStyle = col(DUST, BUCKET_A[k]);
+      ectx.fill(buckets[k]);
+    }
+  }
+
+  /* nodes — back to front */
+  const sorted = [...nodes].sort((x, y) => y.z - x.z);
+  for (const n of sorted) {
+    if (n.vis < 0.02) continue;
+    const depth = Math.max(NODE_DFLOOR, (ZM - n.z) / (2 * ZM));
+    if (n.vacant) {
+      if (n.preview) {
+        /* PRIVATE PREVIEW (valid #hold= link only): the invitee's
+           seat burning white before first light. Drawn like a
+           focused founding core so the moment reads real; public
+           visitors never take this path. */
+        const pb = REDUCED ? 1 : 0.85 + 0.15 * Math.sin(now * 0.003 + n.pulseOffset);
+        const prr = 1.7 * n.scale, pd = Math.max(0.4, depth);
+        const gr = prr * 10 * pb;
+        ectx.globalAlpha = Math.min(1, 0.85 * pd * n.vis);
+        ectx.drawImage(glowWhite, n.sx - gr, n.sy - gr, gr * 2, gr * 2);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = col(WHITE, pd * n.vis);
         ectx.beginPath();
-        ectx.arc(out.sx, out.sy, (0.45 + boost * 1.0) * out.scale * bk, 0, TAU);
+        ectx.arc(n.sx, n.sy, Math.max(0.7, prr), 0, TAU);
         ectx.fill();
-      } else if (ma >= 0.012) {
-        var bi = ma < 0.034 ? 0 : (ma < 0.058 ? 1 : 2);
-        if (!buckets[bi]) buckets[bi] = new Path2D();
-        var mr = 0.5 * out.scale * bk;
-        buckets[bi].moveTo(out.sx + mr, out.sy);
-        buckets[bi].arc(out.sx, out.sy, mr, 0, TAU);
+        continue;
       }
-    }
-    for (k = 0; k < 3; k++) {
-      if (buckets[k]) {
-        ectx.fillStyle = col(DUST, BUCKET_A[k]);
-        ectx.fill(buckets[k]);
+      if (n.held) {
+        /* RESERVED — the third socket state (§8): a seat on hold
+           for an invitee, charged but not lit. Warm neutral light —
+           no discipline color, no name, nothing speculative — with
+           the slow stutter of a warming fluorescent: a socket
+           TRYING to come online. Distinct from dark-vacant (gray
+           dot) and lit-member (colored core) at a glance. */
+        const wf = REDUCED ? 0.7
+          : 0.55 + 0.25 * Math.sin(now * 0.0011 + n.id)
+            + (((now * 0.001 + n.id * 1.31) % 4.7) < 0.09 ? 0.45 : 0);
+        const hr = 1.4 * n.scale * 8;
+        ectx.globalAlpha = Math.min(1, 0.6 * wf * depth * n.vis);
+        ectx.drawImage(glowHeld, n.sx - hr, n.sy - hr, hr * 2, hr * 2);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = col(mix(HELDC, WHITE, 0.35), (0.3 + 0.4 * depth) * wf * n.vis);
+        ectx.beginPath();
+        ectx.arc(n.sx, n.sy, Math.max(0.6, 1.3 * n.scale), 0, TAU);
+        ectx.fill();
+      } else {
+        /* an unclaimed seat: a dark socket, present but unlit — the
+           vacancy is the growth story rendered (§5) */
+        ectx.fillStyle = col(SOCKETC, (0.10 + 0.16 * depth) * n.vis);
+        ectx.beginPath();
+        ectx.arc(n.sx, n.sy, Math.max(0.5, 1.1 * n.scale), 0, TAU);
+        ectx.fill();
       }
-    }
-    ectx.globalCompositeOperation = 'source-over';
-
-    /* composite: pure black ground + emissive + bloom */
-    mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    mctx.fillStyle = '#000';                 /* opaque black: 'overlay'
-                                                dither stays neutral here */
-    mctx.fillRect(0, 0, W, H);
-
-    mctx.globalCompositeOperation = 'lighter';
-    mctx.setTransform(1, 0, 0, 1, 0, 0);
-    mctx.drawImage(em, 0, 0);
-
-    /* ping-pong bloom: successive half-step downscales; hardware
-       bilinear filtering IS the blur (each halving is a proper 2×2
-       box average — never skip levels or it undersamples and
-       shimmers). No ctx.filter anywhere: identical output on
-       Chromium, WebKit, and Gecko.
-       Tier ④/⑤ bloom stride: rebuild the chain (+floor+dither) every
-       Nth frame and reuse it between — halos change slowly, the sharp
-       emissive stays per-frame. REDUCED renders always rebuild (a
-       still must be complete). */
-    if (REDUCED || (bloomTick++ % Q.bloomStride) === 0) {
-      var src = em;
-      var levels = Q.wideBloom ? mips.length : mips.length - 1;
-      for (k = 0; k < levels; k++) {
-        mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
-        mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
-        src = mips[k].c;
+      /* boot-sweep flare — the only OTHER time an unclaimed socket
+         carries light (the held charge above is the first). Palette
+         color by seat, the existing soft sprites, the existing
+         flash decay: a pulse passing through. */
+      if (n.flash > 0.02) {
+        const sm = CAT_NAMES[n.id % CAT_NAMES.length];
+        const fr = 1.6 * n.scale * (4.5 + n.flash * 5);
+        ectx.globalAlpha = Math.min(1, n.flash * 0.8 * depth * n.vis);
+        ectx.drawImage(glowSoft[sm], n.sx - fr, n.sy - fr, fr * 2, fr * 2);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = col(mix(CATS[sm], WHITE, 0.4), n.flash * depth * n.vis);
+        ectx.beginPath();
+        ectx.arc(n.sx, n.sy, Math.max(0.6, 1.2 * n.scale), 0, TAU);
+        ectx.fill();
       }
+      continue;
+    }
+    const isFocus = n === focus;
+    const isNbr = nbrs ? nbrs.has(n.id) : false;
+    const pulse = 0.85 + 0.15 * Math.sin(now * 0.003 + n.pulseOffset);
+    /* young-ring beacon: members never sink into the dark — the
+       depth-alpha floor comes up while the ring is small */
+    const mdepth = YOUNG ? Math.max(0.4, depth) : depth;
 
-      /* the floor — the room catches the packet's light. Painted into
-         the 1/4 mip AFTER the chain is built (so it never compounds
-         into the deeper mips) and BEFORE the dither (so the noise
-         grains it too): 1/16 the pixels of a full-res fill, and the
-         bilinear upscale keeps the falloff liquid. Unlit ground stays
-         absolute #000 — this is light landing on the floor, not a
-         background wash. Alphas are 2x the retired full-res floor
-         because mip 0 composites at 0.5. */
-      var fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
-      var fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3);
-      if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
-      fx.globalCompositeOperation = 'lighter';
-      fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
-      fx.globalCompositeOperation = 'source-over';
+    const baseRad = (n.founding ? 2.6 : 1.6) * n.scale;
+    const rad = baseRad * n.springScale;
 
-      /* temporal dither, applied AT MIP RESOLUTION (1/16 the pixels of
-         a full-res pass): the bloom halos are where 8-bit banding
-         lives, gray noise is neutral on black, and the bilinear
-         upscale melts the jitter into film-grain-scale texture. */
-      var dx1 = mips[0].x;
-      var mw = mips[0].c.width, mh = mips[0].c.height;
-      var sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
-      /* source-atop clips the noise to pixels that GLOW — 'overlay'
-         bleeds onto the transparent regions and grays the pure black */
-      dx1.globalCompositeOperation = 'source-atop';
-      dx1.globalAlpha = 0.12;
-      dx1.drawImage(noise,
-        (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
-        sw, sh, 0, 0, mw, mh);
-      dx1.globalAlpha = 1;
-      dx1.globalCompositeOperation = 'source-over';
+    let glowOp, glowRad, sprite;
+    if (isFocus) {
+      glowOp = 1; glowRad = rad * 15 * pulse;
+      sprite = n.founding ? glowWhite : glowActive[n.medium];
+    } else if (isNbr) {
+      glowOp = (0.55 + n.flash * 0.4) * mdepth; glowRad = rad * 6.5 * pulse;
+      sprite = glowSoft[n.medium];
+    } else {
+      /* the beacon lifts the resting glow, not the peak — the flash
+         path (sweep, packets) still reads as an event on top of it */
+      glowOp = ((YOUNG ? 0.5 : 0.24) + n.flash * 0.55) * mdepth;
+      glowRad = rad * ((YOUNG ? 6 : 4.5) + n.flash * 5) * pulse;
+      sprite = glowSoft[n.medium];
+    }
+    glowOp *= n.vis;
+
+    if (glowOp > 0.02 && glowRad > 1) {
+      ectx.globalAlpha = Math.min(1, glowOp);
+      ectx.drawImage(sprite, n.sx - glowRad, n.sy - glowRad, glowRad * 2, glowRad * 2);
+      ectx.globalAlpha = 1;
     }
 
-    mctx.globalAlpha = 0.5;
-    mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
-    mctx.globalAlpha = 0.62;
-    mctx.drawImage(mips[2].c, 0, 0, canvas.width, canvas.height);   /* 1/16 — soft scatter */
-    if (Q.wideBloom) {
-      mctx.globalAlpha = 0.5;
-      mctx.drawImage(mips[3].c, 0, 0, canvas.width, canvas.height); /* 1/32 — room glow */
+    /* spring ring burst */
+    if (n.springScale > 1.1) {
+      const rr = baseRad * n.springScale * 4;
+      ectx.strokeStyle = col(n.color, Math.min(1, (n.springScale - 1)) * mdepth * n.vis);
+      ectx.lineWidth = 1.4;
+      ectx.beginPath();
+      ectx.arc(n.sx, n.sy, rr, 0, TAU);
+      ectx.stroke();
     }
 
-    mctx.globalAlpha = 1;
-    mctx.globalCompositeOperation = 'source-over';
+    /* hot core */
+    const coreOp = (isFocus ? 1 : (isNbr ? 0.8 : (YOUNG ? 0.65 : 0.45) + n.flash * 0.5)) * mdepth * n.vis;
+    if (coreOp > 0.03) {
+      ectx.fillStyle = isFocus || n.founding
+        ? col(WHITE, coreOp)
+        : col(mix(n.color, WHITE, 0.3 + n.flash * 0.5), coreOp);
+      ectx.beginPath();
+      ectx.arc(n.sx, n.sy, Math.max(0.6, rad * 0.72), 0, TAU);
+      ectx.fill();
+    }
+  }
+  ectx.globalCompositeOperation = 'source-over';
+
+  /* ════════ COMPOSITE: black ground + emissive + bloom ════════ */
+  const fk = REDUCED ? 1 : Math.min(1, dt * 2);   /* reduced motion: snap */
+  floorCur.r += (floorTarget.r - floorCur.r) * fk;
+  floorCur.g += (floorTarget.g - floorCur.g) * fk;
+  floorCur.b += (floorTarget.b - floorCur.b) * fk;
+
+  mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  mctx.fillStyle = '#000';
+  mctx.fillRect(0, 0, W, H);
+
+  mctx.globalCompositeOperation = 'lighter';
+  mctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  /* sharp emissive layer */
+  mctx.drawImage(em, 0, 0);
+
+  /* ping-pong bloom: successive half-step downscales; hardware
+     bilinear filtering IS the blur (each halving is a proper 2×2
+     box average — never skip levels or it undersamples and
+     shimmers). No ctx.filter anywhere: identical output on
+     Chromium, WebKit, and Gecko. */
+  /* tier ④/⑤ bloom stride: rebuild the chain (+floor+dither) every
+     Nth frame and reuse it between — halos change slowly, the sharp
+     emissive stays per-frame. REDUCED renders always rebuild (a still
+     must be complete). */
+  if (REDUCED || (bloomTick++ % Q.bloomStride) === 0) {
+    let src = em;
+    const levels = (Q.wideBloom && MIP_A[2] > 0) ? mips.length : mips.length - 1;
+    for (let k = 0; k < levels; k++) {
+      mips[k].x.clearRect(0, 0, mips[k].c.width, mips[k].c.height);
+      mips[k].x.drawImage(src, 0, 0, mips[k].c.width, mips[k].c.height);
+      src = mips[k].c;
+    }
+
+    /* the floor — the room catches the focused node's color. Painted
+       into the 1/4 mip AFTER the chain is built (so it never compounds
+       into the deeper mips) and BEFORE the dither (so the noise grains
+       it too): 1/16 the pixels of a full-res fill, and the bilinear
+       upscale keeps the falloff liquid. Unlit ground stays absolute
+       #000 — light landing on the floor, not a background wash.
+       Alphas are 2x the old full-res floor because mip 0 composites
+       at 0.5. */
+    const fx = mips[0].x, fw = mips[0].c.width, fh = mips[0].c.height;
+    /* FLOORB and the ring's x-anchor ride the key so a re-anchor
+       (resize/rotate/layout change) rebakes the sprite */
+    const fq = ((floorCur.r >> 3) << 10) | ((floorCur.g >> 3) << 5) | (floorCur.b >> 3) |
+               (Math.min(63, (FLOORB * 64) | 0) << 15) |
+               (Math.min(31, (CX / W * 32) | 0) << 21) | (SIDECOL ? 1 << 26 : 0);
+    if (fq !== floorKey || fw !== floorW) { bakeFloor(fw, fh); floorKey = fq; floorW = fw; }
+    fx.globalCompositeOperation = 'lighter';
+    /* the band always runs to the buffer bottom; the pool's anchor
+       and extent are baked into the sprite (see bakeFloor) */
+    if (LEAN) fx.drawImage(floorSpr, 0, 0, fw, fh);
+    else      fx.drawImage(floorSpr, 0, fh * 0.28, fw, fh * 0.72);
+    fx.globalCompositeOperation = 'source-over';
+
+    /* temporal dither, applied AT MIP RESOLUTION: the bloom halos are
+       where 8-bit banding lives; 'source-atop' clips the noise to
+       pixels that GLOW (the pure black ground never grays) and the
+       bilinear upscale melts the jitter into film-grain-scale texture. */
+    const dx1 = mips[0].x;
+    const mw = mips[0].c.width, mh = mips[0].c.height;
+    const sw = Math.min(NOISE_S, mw), sh = Math.min(NOISE_S, mh);
+    dx1.globalCompositeOperation = 'source-atop';
+    dx1.globalAlpha = DITHER_A;
+    dx1.drawImage(noise,
+      (Math.random() * (NOISE_S - sw)) | 0, (Math.random() * (NOISE_S - sh)) | 0,
+      sw, sh, 0, 0, mw, mh);
+    dx1.globalAlpha = 1;
+    dx1.globalCompositeOperation = 'source-over';
   }
 
-  document.addEventListener('visibilitychange', function () {
-    if (REDUCED) return;
-    if (document.hidden) running = false;
-    else if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(frame); }
-  });
-
-  /* ---- the data island -----------------------------------------
-     Git is the database: the registry (nodes/*.json) compiles to
-     manifest.json in CI, and the page fetches it to light the
-     merged sockets + drive the NODES count. Offline / file:// the
-     fetch fails and the inline seed keeps the pre-launch look —
-     the page never depends on the network to render. */
-  var DISC_NAMES = ['Photography', 'Digital Art', 'Writing', 'Code',
-                    'Music', 'Design', 'Architecture'];
-  var litSprites = { origin: originGlow };
-  function applyRegistry(list) {
-    var i, count = 0;
-    for (i = 0; i < SOCKETS; i++) sockets[i].lit = null;
-    for (i = 0; i < list.length; i++) {
-      var n = list[i];
-      if (!n || typeof n.node !== 'number' || n.status !== 'online') continue;
-      count++;
-      var so = sockets[((n.node % SOCKETS) + SOCKETS) % SOCKETS];
-      var di = DISC_NAMES.indexOf(n.disciplines && n.disciplines[0]);
-      var c = di >= 0 ? CATS[di] : RED;
-      var key = n.node === 0 ? 'origin' : String(di);
-      if (!litSprites[key]) litSprites[key] = glowSprite(mix(c, WHITE, 0.15));
-      so.lit = { c: c, sprite: litSprites[key], white: n.node === 0 };
-    }
-    var cnt = document.getElementById('node-count');
-    if (cnt) cnt.textContent = String(count).padStart(3, '0');
-    if (REDUCED) frame(performance.now());   /* re-render the still */
+  mctx.globalAlpha = MIP_A[0];
+  mctx.drawImage(mips[0].c, 0, 0, canvas.width, canvas.height);   /* 1/4 — neon halo */
+  mctx.globalAlpha = MIP_A[1];
+  mctx.drawImage(mips[2].c, 0, 0, canvas.width, canvas.height);   /* 1/16 — soft scatter */
+  if (Q.wideBloom && MIP_A[2] > 0) {
+    mctx.globalAlpha = MIP_A[2];
+    mctx.drawImage(mips[3].c, 0, 0, canvas.width, canvas.height); /* 1/32 — room glow */
   }
-  /* inline seed — node 000 always burns, even with no network */
-  applyRegistry([{ node: 0, disciplines: ['Photography'], status: 'online' }]);
-  try {
-    fetch('manifest.json').then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (m) { if (m && m.nodes && m.nodes.length) applyRegistry(m.nodes); })
-      .catch(function () {});
-  } catch (e) {}
 
-  requestAnimationFrame(frame);
-})();
+  mctx.globalAlpha = 1;
+  mctx.globalCompositeOperation = 'source-over';
+
+  gov.lastW = (performance.now() - w0) / 1000;   /* this frame's CPU work */
+  ringPresented = true;              /* a frame reached the screen — see the boot net */
+  if (!REDUCED && running) requestAnimationFrame(render);
+}
+
+/* hidden tab → paused; the demo re-arms on return */
+document.addEventListener('visibilitychange', () => {
+  if (REDUCED) return;
+  if (document.hidden) running = false;
+  else releaseEngine();               /* respects an open overlay's hold */
+});
+
+/* debug hook for driving the demo headlessly */
+window.RING = { focus: i => focusNode(liveNodes[i % liveNodes.length]),
+                nodes, liveNodes, openIndex, setFilter, openHelp,
+                openInvite, sweeping: () => sweepT >= 0,
+                held: () => [...HELD.keys()], preview: () => PREVIEW };
+
+/* ── the private preview ─────────────────────────────────────
+   A valid #hold= link (see PREVIEW, validated against status.json):
+   spin the held seat front-top, burn it white, and put the
+   invitee's name on the card — the "your seat is already lit, come
+   see" moment, rendered for exactly one person. The name lives in
+   the link they were sent, never in a served file; everyone else's
+   page renders this seat as an anonymous held socket. */
+function applyPreview() {
+  const n = nodes[PREVIEW.seat];
+  if (!n || !n.vacant || !n.held) return;
+  n.preview = true;
+  targetSpin = -Math.PI / 2 - n.theta;
+  if (REDUCED) spin = targetSpin;
+  autoRotate = false;               /* arrive ON the seat; drift resumes */
+  clearTimeout(resumeTimer);
+  resumeTimer = setTimeout(() => { if (!REDUCED) autoRotate = true; }, 9000);
+  floorTarget = mix(HELDC, WHITE, 0.35);
+  infoPanel.style.borderColor = 'rgba(255,255,255,0.55)';
+  infoName.textContent = PREVIEW.name || 'YOUR SEAT';
+  infoName.style.textShadow = '0 0 20px rgba(255,255,255,0.8)';
+  infoGlyph.textContent = (PREVIEW.name || 'A').charAt(0).toUpperCase();
+  infoGlyph.style.color = '#fff';
+  infoGlyph.style.textShadow = '0 0 34px rgba(255,255,255,0.5)';
+  /* no public identity exists yet — no address, no OPEN SITE */
+  infoAddr.style.display = 'none';
+  infoActions.style.display = 'none';
+  infoMeta.textContent = 'N#' + String(n.num).padStart(3, '0') + ' // HELD FOR YOU';
+  infoBadges.textContent = '';
+  for (const t of ['RESERVED', n.num < 100 ? 'FOUNDING SEAT' : '']) {
+    if (!t) continue;
+    const s = document.createElement('span');
+    s.className = 'badge';
+    s.textContent = t;
+    s.style.borderColor = '#fff';
+    s.style.color = '#fff';
+    infoBadges.appendChild(s);
+  }
+  infoPanel.classList.add('active');
+  idleEl.classList.add('hide');
+  requestRender();
+}
+if (PREVIEW) applyPreview();
+
+/* a pasted #/slug deep link lands focused (mock data is seeded, so
+   demo links survive reloads; live data is stable by nature) */
+if (location.hash.length > 2 && !PREVIEW) applyHash();
+
+requestAnimationFrame(render);
+
+})().catch(err => {
+  /* any synchronous boot failure (no canvas context, a thrown init) —
+     degrade to the static fallback instead of a black void */
+  try { console.error('[ring] engine boot failed — static fallback', err); } catch (e) {}
+  try { document.body.classList.add('no-engine'); } catch (e) {}
+});   /* end of engine boot (see the async wrapper at the top) */
 </script>
-
 </body>
 </html>
