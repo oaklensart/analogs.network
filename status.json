@@ -6,5 +6,12 @@
     "oaklens-art": {
       "state": "online"
     }
+  },
+  "reserved": {
+    "1": {
+      "held": "2026-07-19",
+      "until": "2026-08-09",
+      "key": "18aa34f2"
+    }
   }
 }
