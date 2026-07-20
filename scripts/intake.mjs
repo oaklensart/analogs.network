@@ -26,6 +26,11 @@
  *        [--links "Label|https://a.com, Label2|https://b.com"]  up to 4
  *        [--dry]           preview everything, write NOTHING
  *        [--ack]           print only the acknowledgment email and exit
+ *        [--summary <path>] ALSO append a phone-readable markdown copy of the
+ *                          emails to <path>. Used by the ADD // NODE workflow
+ *                          with $GITHUB_STEP_SUMMARY so the two Monitor replies
+ *                          render (copy-ready) in the run summary on mobile.
+ *                          Absent = terminal output is byte-for-byte unchanged.
  *
  * Disciplines (same order and numbering applicants see on the ring):
  *   1 Photography  2 Digital Art  3 Writing  4 Code  5 Music  6 Design
@@ -35,7 +40,7 @@
  * (the printed git line does exactly that).
  */
 
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +59,17 @@ const DISCIPLINES = ['Photography', 'Digital Art', 'Writing', 'Code',
 const has = f => process.argv.includes('--' + f);
 const arg = f => { const i = process.argv.indexOf('--' + f); return i > 0 ? process.argv[i + 1] : null; };
 const die = m => { console.error('intake: ' + m); process.exit(1); };
+
+/* --summary <path>: append a phone-readable markdown copy of the emails. The
+   ADD // NODE workflow points this at $GITHUB_STEP_SUMMARY so the replies show
+   up copy-ready in the run summary. No path = a no-op (terminal use unchanged). */
+const summaryPath = arg('summary');
+const toSummary = md => {
+  if (!summaryPath) return;
+  try { appendFileSync(summaryPath, md.replace(/\n?$/, '\n')); }
+  catch (e) { console.error('intake: could not write --summary: ' + e.message); }
+};
+const fence = s => '```\n' + s + '\n```';
 
 const iso = t => new Date(t).toISOString().slice(0, 10);
 const pad = n => String(n).padStart(3, '0');
@@ -96,7 +112,12 @@ function ackEmail() {
     '// THE MONITOR //'
   ].join('\n');
 }
-if (has('ack')) { block('STEP 1 // ACKNOWLEDGMENT EMAIL  (send now)', ackEmail()); process.exit(0); }
+if (has('ack')) {
+  block('STEP 1 // ACKNOWLEDGMENT EMAIL  (send now)', ackEmail());
+  toSummary(`## Acknowledgment reply // ${salutation}\n\n` +
+    `Send this now — the immediate first reply, before you vet.\n\n${fence(ackEmail())}\n`);
+  process.exit(0);
+}
 
 /* url + discipline are required for a real add */
 let url = arg('url');
@@ -200,6 +221,31 @@ function litEmail() {
   return out.join('\n');
 }
 
+/* the phone-readable run summary: the node line, then the two Monitor replies
+   in copy-ready code fences (dry = nothing was written). */
+function joinSummary(dry) {
+  const meta = `**N#${pad(node)}** · ${discipline}${founding ? ' · founding' : ''} · slug \`${slug}\`` +
+    ` · \`nodes/${pad(node)}-${slug}.json\`` +
+    (holdsBelow.length ? `\n\n> Holds ahead: ${holdsBelow.map(pad).join(', ')} (unclaimed — this number can still settle upward).` : '');
+  return [
+    `## ${name}`,
+    '',
+    meta,
+    dry ? '\n> Dry run — nothing was written.' : '',
+    '',
+    '### 1 — Acknowledgment reply',
+    '_Send the moment the request lands, before you vet._',
+    '',
+    fence(ackEmail()),
+    '',
+    '### 2 — "You\'re lit" reply',
+    '_Send once the node is live (about a minute after this run goes green)._',
+    '',
+    fence(litEmail()),
+    ''
+  ].join('\n');
+}
+
 /* ── output ─────────────────────────────────────────────────────────── */
 block('STEP 1 // ACKNOWLEDGMENT EMAIL  (send the moment the request lands)', ackEmail());
 
@@ -215,6 +261,7 @@ block('STEP 2 // CHECKS', [
 if (has('dry')) {
   console.log('[dry run] nothing written. Re-run without --dry to add the node.\n');
   block("STEP 3 // YOU'RE LIT EMAIL  (preview — send after merge)", litEmail());
+  toSummary(joinSummary(true));
   process.exit(0);
 }
 
@@ -229,6 +276,7 @@ try {
 }
 
 block("STEP 3 // YOU'RE LIT EMAIL  (send after you push)", litEmail());
+toSummary(joinSummary(false));
 
 console.log('Next — commit & deploy:');
 console.log(`  git add -A && git commit -m ${JSON.stringify(`Node ${pad(node)}: ${name} joins the ring (${discipline}) [skip-manifest]`)} && git push origin main`);

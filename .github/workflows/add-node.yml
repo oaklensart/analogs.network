@@ -1,0 +1,135 @@
+name: ADD // NODE
+
+# Add a node from anywhere — phone, iPad, a borrowed laptop. This is the
+# terminal intake routine (scripts/intake.mjs) run on GitHub's machine instead
+# of yours, so no local clone is needed and the join number is always assigned
+# against the real live registry (a stale clone can't misnumber it).
+#
+# From the GitHub mobile app or any browser:
+#   Actions  →  ADD // NODE  →  Run workflow  →  fill URL / name / discipline.
+#
+# The runner assigns the next number, writes nodes/{NNN}-{slug}.json, recompiles
+# manifest.json + status.json + analogs.opml, commits, and pushes to main
+# (Cloudflare Pages deploys in ~a minute). The two Monitor replies —
+# acknowledgment and "you're lit" — appear copy-ready in the run summary.
+#
+# Only accounts with write access to this repo can trigger a workflow_dispatch,
+# so this is owner-gated by construction — no admin page, no stored token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Their site — e.g. https://their-site.com  (leave blank for an acknowledgment-only run)'
+        type: string
+        required: false
+      name:
+        description: 'Name / studio — e.g.  shoggi / cybersoda'
+        type: string
+        required: true
+      disc:
+        description: 'Discipline'
+        type: choice
+        required: true
+        options:
+          - '1: Photography'
+          - '2: Digital Art'
+          - '3: Writing'
+          - '4: Code'
+          - '5: Music'
+          - '6: Design'
+          - '7: Architecture'
+      ack_only:
+        description: 'Only draft the acknowledgment reply (writes nothing, no commit)'
+        type: boolean
+        required: false
+        default: false
+      slug:
+        description: 'Optional — override the auto slug (default: from the domain)'
+        type: string
+        required: false
+      links:
+        description: 'Optional extra card links — "Label|https://a.com, Label2|https://b.com" (max 4)'
+        type: string
+        required: false
+
+# one add at a time, so two runs can never grab the same join number
+concurrency:
+  group: add-node
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Intake
+        id: intake
+        # inputs pass through the environment, never interpolated into the
+        # script body — a name or URL can't break out into a shell command.
+        env:
+          IN_URL: ${{ inputs.url }}
+          IN_NAME: ${{ inputs.name }}
+          IN_DISC: ${{ inputs.disc }}
+          IN_SLUG: ${{ inputs.slug }}
+          IN_LINKS: ${{ inputs.links }}
+          ACK_ONLY: ${{ inputs.ack_only }}
+        run: |
+          set -euo pipefail
+
+          if [ "$ACK_ONLY" = "true" ]; then
+            node scripts/intake.mjs --name "$IN_NAME" --ack --summary "$GITHUB_STEP_SUMMARY"
+            echo "added=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${IN_URL:-}" ]; then
+            echo "::error::A site URL is required to add a node. (Only the name is needed for an acknowledgment-only run — tick 'ack_only' for that.)"
+            exit 1
+          fi
+
+          DISC_NUM="${IN_DISC%%:*}"          # "4: Code" -> "4"
+          ARGS=( --url "$IN_URL" --name "$IN_NAME" --disc "$DISC_NUM" --summary "$GITHUB_STEP_SUMMARY" )
+          [ -n "${IN_SLUG:-}" ]  && ARGS+=( --slug  "$IN_SLUG"  )
+          [ -n "${IN_LINKS:-}" ] && ARGS+=( --links "$IN_LINKS" )
+
+          node scripts/intake.mjs "${ARGS[@]}"
+          node scripts/build-opml.mjs        # keep the ring's OPML in step with the manifest
+          echo "added=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit & deploy
+        if: steps.intake.outputs.added == 'true'
+        env:
+          IN_NAME: ${{ inputs.name }}
+          IN_DISC: ${{ inputs.disc }}
+        run: |
+          set -euo pipefail
+
+          NODE_FILE=$(git ls-files -o --exclude-standard 'nodes/*.json' | grep -E 'nodes/[0-9]{3}-.+\.json$' | head -n1)
+          if [ -z "$NODE_FILE" ]; then
+            echo "::error::intake wrote no new node file — nothing to commit."
+            exit 1
+          fi
+          NUM="$(basename "$NODE_FILE" | cut -c1-3)"
+          DISC_NAME="${IN_DISC#*: }"          # "4: Code" -> "Code"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          # [skip-manifest] guard: we already compiled the manifest/opml here,
+          # so the BUILD // MANIFEST workflow must not re-run and re-commit.
+          git commit -m "Node ${NUM}: ${IN_NAME} joins the ring (${DISC_NAME}) [skip-manifest]"
+          git push
+
+          {
+            echo ""
+            echo "---"
+            echo "**Deployed** — N#${NUM} pushed to \`main\`. Cloudflare Pages will have it live in about a minute. Send reply 1 now if you haven't, and reply 2 once the light is on."
+          } >> "$GITHUB_STEP_SUMMARY"
