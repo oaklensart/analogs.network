@@ -1,6 +1,6 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-19T21:16:12Z",
+  "generated": "2026-07-21T15:32:00Z",
   "swept": null,
   "nodes": {
     "oaklens-art": {
@@ -13,6 +13,9 @@
       "state": "online"
     },
     "cybersoda": {
+      "state": "online"
+    },
+    "chrislockard": {
       "state": "online"
     }
   },
