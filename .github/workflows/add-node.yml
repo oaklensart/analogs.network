@@ -87,22 +87,28 @@ jobs:
           if [ "$ACK_ONLY" = "true" ]; then
             node scripts/intake.mjs --name "$IN_NAME" --ack --summary "$GITHUB_STEP_SUMMARY"
             echo "added=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            if [ -z "${IN_URL:-}" ]; then
+              echo "::error::A site URL is required to add a node. (Only the name is needed for an acknowledgment-only run — tick 'ack_only' for that.)"
+              exit 1
+            fi
+
+            DISC_NUM="${IN_DISC%%:*}"          # "4: Code" -> "4"
+            ARGS=( --url "$IN_URL" --name "$IN_NAME" --disc "$DISC_NUM" --summary "$GITHUB_STEP_SUMMARY" )
+            [ -n "${IN_SLUG:-}" ]  && ARGS+=( --slug  "$IN_SLUG"  )
+            [ -n "${IN_LINKS:-}" ] && ARGS+=( --links "$IN_LINKS" )
+
+            node scripts/intake.mjs "${ARGS[@]}"
+            node scripts/build-opml.mjs        # keep the ring's OPML in step with the manifest
+            echo "added=true" >> "$GITHUB_OUTPUT"
           fi
 
-          if [ -z "${IN_URL:-}" ]; then
-            echo "::error::A site URL is required to add a node. (Only the name is needed for an acknowledgment-only run — tick 'ack_only' for that.)"
-            exit 1
-          fi
-
-          DISC_NUM="${IN_DISC%%:*}"          # "4: Code" -> "4"
-          ARGS=( --url "$IN_URL" --name "$IN_NAME" --disc "$DISC_NUM" --summary "$GITHUB_STEP_SUMMARY" )
-          [ -n "${IN_SLUG:-}" ]  && ARGS+=( --slug  "$IN_SLUG"  )
-          [ -n "${IN_LINKS:-}" ] && ARGS+=( --links "$IN_LINKS" )
-
-          node scripts/intake.mjs "${ARGS[@]}"
-          node scripts/build-opml.mjs        # keep the ring's OPML in step with the manifest
-          echo "added=true" >> "$GITHUB_OUTPUT"
+          # Also print the replies into the PLAIN run log. The GitHub iPad app
+          # reliably shows step logs even when it hides the rendered job summary,
+          # so the drafts are always reachable (e.g. from the mail truck).
+          echo "::group::EMAILS — copy your replies from here"
+          cat "$GITHUB_STEP_SUMMARY"
+          echo "::endgroup::"
 
       - name: Commit & deploy
         if: steps.intake.outputs.added == 'true'
