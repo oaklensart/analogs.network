@@ -16,7 +16,7 @@
  *      compile — a wave of non-answers can't lock up the low numbers.
  *
  * Usage (run from the repo root, then commit status.json):
- *   node scripts/reserve.mjs hold <seat> --name "Their Name" [--weeks 3]
+ *   node scripts/reserve.mjs hold <seat> --name "Their Name" [--weeks 3 | --days 2 | --hours 24]
  *   node scripts/reserve.mjs release <seat>
  *   node scripts/reserve.mjs list
  *   node scripts/reserve.mjs prune
@@ -80,7 +80,7 @@ if (cmd === 'prune') {
 
 const seat = parseInt(seatArg, 10);
 if (cmd !== 'hold' && cmd !== 'release')
-  die('usage: reserve.mjs hold <seat> --name "Name" [--weeks 3] | release <seat> | list | prune');
+  die('usage: reserve.mjs hold <seat> --name "Name" [--weeks 3 | --days 2 | --hours 24] | release <seat> | list | prune');
 if (!Number.isInteger(seat) || seat < 0) die('seat must be a non-negative integer');
 
 if (cmd === 'release') {
@@ -94,7 +94,26 @@ if (cmd === 'release') {
 /* hold */
 const name = arg('name');
 if (!name) die('hold needs --name "Their Name" (goes ONLY into the printed link)');
-const weeks = Math.max(1, Math.min(8, parseFloat(arg('weeks') || '3')));
+
+/* hold length: --weeks / --days / --hours (combined; default 3 weeks). --hours
+   stores a precise timestamp so a 24h social hold is a REAL 24h; weeks/days
+   store a date (the hold lapses at UTC midnight). Capped at 8 weeks — a hold is
+   never permanent (manual §8). Date.parse reads both forms, so the page and
+   build-manifest.mjs need no change. */
+const numFlag = f => { const v = arg(f); return v == null ? null : parseFloat(v); };
+const wk = numFlag('weeks'), dy = numFlag('days'), hr = numFlag('hours');
+if ([wk, dy, hr].some(v => v != null && !(v >= 0))) die('hold length must be a non-negative number');
+const ms = (wk == null && dy == null && hr == null)
+  ? 3 * 7 * day
+  : (wk || 0) * 7 * day + (dy || 0) * day + (hr || 0) * 3600000;
+if (ms <= 0) die('hold length must be positive (use --weeks / --days / --hours)');
+if (ms > 8 * 7 * day) die('a hold caps at 8 weeks — it is never permanent');
+const until = hr != null
+  ? new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, 'Z')  /* precise (sub-day) */
+  : iso(Date.now() + ms);                                              /* date only */
+const dur = hr != null ? `~${Math.round(ms / 3600000)} hr`
+          : ms % (7 * day) === 0 ? `~${ms / (7 * day)} wk`
+          : `~${Math.round(ms / day)} day`;
 
 /* claimed and dark numbers are never holdable — permanence is theirs */
 for (const f of readdirSync(NODES_DIR).filter(f => /^\d{3}-.+\.json$/.test(f))) {
@@ -103,12 +122,12 @@ for (const f of readdirSync(NODES_DIR).filter(f => /^\d{3}-.+\.json$/.test(f))) 
 }
 
 const key = randomBytes(4).toString('hex');
-reserved[seat] = { held: iso(Date.now()), until: iso(Date.now() + weeks * 7 * day), key };
+reserved[seat] = { held: iso(Date.now()), until, key };
 save();
 
 const payload = Buffer.from(JSON.stringify({ s: seat, k: key, n: name }))
   .toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
-console.log(`seat ${String(seat).padStart(3, '0')} held until ${reserved[seat].until} (~${weeks} wk).`);
+console.log(`seat ${String(seat).padStart(3, '0')} held until ${reserved[seat].until} (${dur}).`);
 console.log('');
 console.log('PRIVATE preview link — send to the invitee only, never post it:');
 console.log('  ' + SITE + '#hold=' + payload);
