@@ -48,6 +48,10 @@ on:
         description: 'Optional — override the auto slug (default: from the domain)'
         type: string
         required: false
+      seat:
+        description: 'Optional — claim a specific held seat (e.g. 7) when a reserved invitee accepts; blank = next free number'
+        type: string
+        required: false
       links:
         description: 'Optional extra card links — "Label|https://a.com, Label2|https://b.com" (max 4)'
         type: string
@@ -79,6 +83,7 @@ jobs:
           IN_NAME: ${{ inputs.name }}
           IN_DISC: ${{ inputs.disc }}
           IN_SLUG: ${{ inputs.slug }}
+          IN_SEAT: ${{ inputs.seat }}
           IN_LINKS: ${{ inputs.links }}
           ACK_ONLY: ${{ inputs.ack_only }}
         run: |
@@ -96,6 +101,7 @@ jobs:
             DISC_NUM="${IN_DISC%%:*}"          # "4: Code" -> "4"
             ARGS=( --url "$IN_URL" --name "$IN_NAME" --disc "$DISC_NUM" --summary "$GITHUB_STEP_SUMMARY" )
             [ -n "${IN_SLUG:-}" ]  && ARGS+=( --slug  "$IN_SLUG"  )
+            [ -n "${IN_SEAT:-}" ]  && ARGS+=( --seat  "$IN_SEAT"  )
             [ -n "${IN_LINKS:-}" ] && ARGS+=( --links "$IN_LINKS" )
 
             node scripts/intake.mjs "${ARGS[@]}"

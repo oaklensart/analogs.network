@@ -21,6 +21,9 @@
  * Usage (run from the repo root):
  *   node scripts/intake.mjs --url <url> --name "Name / studio" --disc <1-7>
  *        [--slug <slug>]   override the auto slug (default: from the domain)
+ *        [--seat <n>]      claim a specific number instead of the next free one
+ *                          — use when a pre-lit invitee accepts their held seat
+ *                          (the hold auto-releases on recompile)
  *        [--to "Name"]     salutation (default: name before the first "/")
  *        [--est YYYY-MM-DD] join date (default: today)
  *        [--links "Label|https://a.com, Label2|https://b.com"]  up to 4
@@ -77,7 +80,9 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
                 'August', 'September', 'October', 'November', 'December'];
-const longDate = d => { const [, m, day] = d.split('-').map(Number); return `${MONTHS[m - 1]} ${day}`; };
+/* accept both date-only ("2026-08-09") and full-timestamp ("2026-07-23T12:18:12Z")
+   holds — reserve.mjs stores a timestamp for sub-day (--hours) holds. */
+const longDate = d => { const [, m, day] = d.slice(0, 10).split('-').map(Number); return `${MONTHS[m - 1]} ${day}`; };
 const rule = '─'.repeat(66);
 const block = (title, body) => console.log('\n' + rule + '\n' + title + '\n' + rule + '\n\n' + body + '\n');
 
@@ -161,8 +166,18 @@ if (nodes.some(n => { try { return new URL(n.url).hostname.replace(/^www\./, '')
 const status = existsSync(STATUS) ? JSON.parse(readFileSync(STATUS, 'utf8')) : {};
 const reserved = status.reserved || {};
 
-/* next join-order number: one past the highest occupied node OR reserved seat */
-const node = Math.max(-1, ...nodes.map(n => n.node), ...Object.keys(reserved).map(Number)) + 1;
+/* node number: normally the next join-order number (one past the highest
+   occupied node OR reserved seat). --seat <n> overrides it so a pre-lit invitee
+   claims exactly their held number; that hold then auto-releases on recompile
+   (build-manifest drops holds whose seat is now a claimed node). */
+let node = Math.max(-1, ...nodes.map(n => n.node), ...Object.keys(reserved).map(Number)) + 1;
+const seatFlag = arg('seat');
+if (seatFlag != null) {
+  node = parseInt(seatFlag, 10);
+  if (!Number.isInteger(node) || node < 0) die('--seat must be a non-negative integer');
+  if (nodes.some(n => n.node === node)) die(`--seat ${node} is already a claimed node (numbers are permanent, §1.6)`);
+}
+const claimingHold = seatFlag != null && Object.prototype.hasOwnProperty.call(reserved, String(node));
 const founding = node < 100;
 
 const record = { node, slug, name, url, disciplines: [discipline], est, status: 'online' };
@@ -178,7 +193,7 @@ const holdsBelow = Object.keys(reserved).map(Number)
 function numberPara() {
   const H = holdsBelow.length;
   if (!H) return '';
-  const untils = [...new Set(holdsBelow.map(s => reserved[s].until))].sort();
+  const untils = [...new Set(holdsBelow.map(s => reserved[s].until.slice(0, 10)))].sort();
   const expiry = untils.map(longDate).join(H > 1 && untils.length > 1 ? ' and ' : '');
   const ceiling = node - H;
   const lapse = H === 1 ? 'it lapses' : H === 2 ? 'either lapses' : 'any of them lapse';
@@ -253,7 +268,8 @@ block('STEP 2 // CHECKS', [
   `discipline    ${discNum} → ${discipline}`,
   `slug          ${slug}`,
   `url           ${url}`,
-  `next number   N#${pad(node)}${founding ? '   (founding — within the first 100)' : ''}`,
+  `number        N#${pad(node)}${founding ? '   (founding — within the first 100)' : ''}` +
+    (seatFlag != null ? (claimingHold ? '   [claiming held seat]' : '   [manual seat — not a current hold]') : ''),
   `holds ahead   ${holdsBelow.length ? holdsBelow.map(pad).join(', ') + '  (unclaimed — promotion possible)' : 'none'}`,
   `file          nodes/${pad(node)}-${slug}.json`
 ].join('\n'));
