@@ -229,7 +229,7 @@ html, body {
   position: relative;
 }
 /* the monogram — a callsign plate, not an icon. First letter of the
-   node's own domain, watermarked in its discipline light. Zero deps,
+   member's NAME, watermarked in its discipline light. Zero deps,
    zero third-party favicon fetches (visitors' browsers never touch a
    member site until they choose to). */
 .glyph {
@@ -885,7 +885,7 @@ body.no-engine .fallback { display: flex; }
         <ul class="glyphs">
           <li><i class="g-dot"></i><span>A dot is a member — a <b>node</b>. Its color is their discipline.</span></li>
           <li><b class="g-num">N#043</b><span>Join order. Numbers are permanent and never reused — a low number means they were here early.</span></li>
-          <li><b class="g-letter">S</b><span>The big letter on a card is the first letter of the member&rsquo;s own web address.</span></li>
+          <li><b class="g-letter">S</b><span>The big letter on a card is the first letter of the member&rsquo;s name.</span></li>
           <li><i class="g-packet"></i><span>The traveling lights are signals riding the chain that links every member, in join order.</span></li>
         </ul>
         <div class="swatches" aria-label="Discipline colors"></div>
@@ -1166,6 +1166,17 @@ function mix(c1, c2, k) {
 const WHITE  = { r: 255, g: 255, b: 255 };
 const FARRED = { r: 120, g: 10,  b: 26 };   /* atmospheric far-side red */
 const DUST   = { r: 255, g: 210, b: 200 };
+
+/* ── callsign ────────────────────────────────────────────────
+   The monogram plated on a node's card: the first letter of the
+   member's NAME (Yvonne Hanson → Y). Deliberately not the address —
+   a host with a "www." prefix brands every such member the same W,
+   which is no callsign at all. Falls back to the domain, so a name
+   that opens with punctuation still plates something. */
+function monogram(name, domain) {
+  const first = s => (String(s || '').match(/[a-z0-9]/i) || [''])[0];
+  return (first(name) || first(domain) || 'A').toUpperCase();
+}
 
 /* ── canvases ────────────────────────────────────────────── */
 const canvas = document.getElementById('net');
@@ -1758,8 +1769,8 @@ function focusNode(node) {
   infoName.textContent = node.name;
   infoName.style.textShadow = `0 0 20px ${col(node.color, 0.9)}`;
 
-  /* the callsign plate: first letter of the DOMAIN, in discipline light */
-  infoGlyph.textContent = node.domain.charAt(0).toUpperCase();
+  /* the callsign plate: first letter of the member's NAME, in discipline light */
+  infoGlyph.textContent = monogram(node.name, node.domain);
   infoGlyph.style.color = col(node.color, 1);
   infoGlyph.style.textShadow = `0 0 34px ${col(node.color, 0.55)}`;
 
@@ -3153,7 +3164,7 @@ function applyPreview() {
   infoPanel.style.borderColor = 'rgba(255,255,255,0.55)';
   infoName.textContent = PREVIEW.name || 'YOUR SEAT';
   infoName.style.textShadow = '0 0 20px rgba(255,255,255,0.8)';
-  infoGlyph.textContent = (PREVIEW.name || 'A').charAt(0).toUpperCase();
+  infoGlyph.textContent = monogram(PREVIEW.name);
   infoGlyph.style.color = '#fff';
   infoGlyph.style.textShadow = '0 0 34px rgba(255,255,255,0.5)';
   /* no public identity exists yet — no address, no OPEN SITE */
