@@ -1,8 +1,8 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-21T15:32:00Z",
-  "count": 5,
-  "online": 5,
+  "generated": "2026-07-30T00:16:52Z",
+  "count": 6,
+  "online": 6,
   "nodes": [
     {
       "node": 0,
@@ -16,6 +16,24 @@
       "status": "online",
       "founding": true,
       "button": "https://analogs.network/assets/buttons/oaklens-art.svg"
+    },
+    {
+      "node": 1,
+      "slug": "yvonne-hanson",
+      "name": "Yvonne Hanson",
+      "url": "https://www.yhansonphotography.ca",
+      "disciplines": [
+        "Photography"
+      ],
+      "est": "2026-07-30",
+      "status": "online",
+      "founding": true,
+      "links": [
+        {
+          "label": "Print Shop",
+          "url": "https://www.inprnt.com/gallery/yhansonphotography"
+        }
+      ]
     },
     {
       "node": 3,

@@ -1,9 +1,12 @@
 {
   "network": "analogs.network",
-  "generated": "2026-07-21T15:32:00Z",
+  "generated": "2026-07-30T00:16:52Z",
   "swept": null,
   "nodes": {
     "oaklens-art": {
+      "state": "online"
+    },
+    "yvonne-hanson": {
       "state": "online"
     },
     "valerie-flynn": {
@@ -20,25 +23,10 @@
     }
   },
   "reserved": {
-    "1": {
-      "held": "2026-07-19",
-      "until": "2026-08-09",
-      "key": "18aa34f2"
-    },
     "2": {
       "held": "2026-07-19",
       "until": "2026-08-09",
       "key": "cfb0ba14"
-    },
-    "7": {
-      "held": "2026-07-22",
-      "until": "2026-07-23T12:18:12Z",
-      "key": "8bee69f7"
-    },
-    "8": {
-      "held": "2026-07-22",
-      "until": "2026-07-23T12:18:13Z",
-      "key": "5dd74441"
     }
   }
 }

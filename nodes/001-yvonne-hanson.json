@@ -1,0 +1,18 @@
+{
+  "node": 1,
+  "slug": "yvonne-hanson",
+  "name": "Yvonne Hanson",
+  "url": "https://www.yhansonphotography.ca",
+  "disciplines": [
+    "Photography"
+  ],
+  "est": "2026-07-30",
+  "status": "online",
+  "founding": true,
+  "links": [
+    {
+      "label": "Print Shop",
+      "url": "https://www.inprnt.com/gallery/yhansonphotography"
+    }
+  ]
+}
