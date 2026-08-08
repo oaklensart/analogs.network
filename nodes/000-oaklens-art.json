@@ -7,5 +7,8 @@
   "est": "2026-07-14",
   "status": "online",
   "founding": true,
-  "button": "https://analogs.network/assets/buttons/oaklens-art.svg"
+  "button": "https://analogs.network/assets/buttons/oaklens-art.svg",
+  "links": [
+    { "label": "OAKLENS OS", "url": "https://oaklens.art/os/" }
+  ]
 }
